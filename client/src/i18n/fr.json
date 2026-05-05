@@ -1,0 +1,62 @@
+{
+  "nav": {
+    "library": "Bibliothèque",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "register": "S'inscrire"
+  },
+  "auth": {
+    "login": "Connexion",
+    "register": "S'inscrire",
+    "forgotPassword": "Mot de passe oublié?",
+    "resetPassword": "Réinitialiser",
+    "username": "Nom d'utilisateur",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "orContinueWith": "Ou continuer avec",
+    "alreadyHaveAccount": "Vous avez déjà un compte?",
+    "dontHaveAccount": "Vous n'avez pas de compte?"
+  },
+  "library": {
+    "search": "Rechercher des films...",
+    "filters": "Filtres",
+    "sortBy": "Trier par",
+    "genre": "Genre",
+    "year": "Année",
+    "rating": "Note",
+    "noResults": "Aucun film trouvé",
+    "watched": "Regardé",
+    "unwatched": "Non regardé"
+  },
+  "movie": {
+    "director": "Réalisateur",
+    "cast": "Casting",
+    "year": "Année",
+    "length": "Durée",
+    "rating": "Note",
+    "comments": "Commentaires",
+    "addComment": "Ajouter un commentaire",
+    "subtitles": "Sous-titres",
+    "noSubtitles": "Aucun sous-titre disponible"
+  },
+  "profile": {
+    "editProfile": "Modifier le profil",
+    "profilePicture": "Photo de profil",
+    "language": "Langue",
+    "save": "Sauvegarder"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "save": "Sauvegarder",
+    "delete": "Supprimer",
+    "edit": "Modifier"
+  }
+}

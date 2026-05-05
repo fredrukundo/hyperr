@@ -1,0 +1,62 @@
+{
+  "nav": {
+    "library": "Library",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout",
+    "login": "Login",
+    "register": "Register"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "username": "Username",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "orContinueWith": "Or continue with",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?"
+  },
+  "library": {
+    "search": "Search movies...",
+    "filters": "Filters",
+    "sortBy": "Sort by",
+    "genre": "Genre",
+    "year": "Year",
+    "rating": "Rating",
+    "noResults": "No movies found",
+    "watched": "Watched",
+    "unwatched": "Unwatched"
+  },
+  "movie": {
+    "director": "Director",
+    "cast": "Cast",
+    "year": "Year",
+    "length": "Length",
+    "rating": "Rating",
+    "comments": "Comments",
+    "addComment": "Add a comment",
+    "subtitles": "Subtitles",
+    "noSubtitles": "No subtitles available"
+  },
+  "profile": {
+    "editProfile": "Edit Profile",
+    "profilePicture": "Profile Picture",
+    "language": "Language",
+    "save": "Save Changes"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit"
+  }
+}
