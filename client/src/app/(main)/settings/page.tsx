@@ -44,14 +44,14 @@ export default function SettingsPage() {
     try {
       await api.delete("/users/delete");
 
-      success("Account deleted successfully");
+      success(t.settings.deleteSuccess);
 
       // ✅ Clear auth state
       logout();
 
       // logout() already redirects to /login
     } catch (err: any) {
-      error(err?.response?.data?.error?.code || "Failed to delete account");
+      error(err?.response?.data?.error?.code || t.settings.deleteError);
     }
   };
 
@@ -91,7 +91,7 @@ export default function SettingsPage() {
           onClick={handleDeleteAccount}
           className="flex items-center gap-2 bg-destructive/10 hover:bg-destructive text-destructive hover:text-white border-2 border-destructive/30 hover:border-destructive font-bold px-5 py-2.5 rounded-xl transition-all duration-200 text-sm"
         >
-          Delete Account
+          {t.settings.deleteAccount}
         </button>
       </div>
 
