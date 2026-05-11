@@ -99,11 +99,21 @@ export function useDeleteComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: deleteComment,
-    onSuccess: () => {
-      // Invalidate all comment queries
+    mutationFn: ({
+      commentId,
+      movieId,
+    }: {
+      commentId: number;
+      movieId: number;
+    }) => deleteComment(commentId),
+
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["comments"],
+        queryKey: ["comments", "movie", variables.movieId],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["comments", "latest"],
       });
     },
   });

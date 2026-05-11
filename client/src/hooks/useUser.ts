@@ -4,29 +4,32 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUserProfile, updateUserProfile, getAllUsers } from "@/services/user.service";
 import { User, UpdateUserData } from "@/types/user.types";
 import { useAuthStore } from "@/store/auth.store";
+import { getToken } from "@/services/auth.service";
+import { getCurrentUser } from "@/services/user.service";
 
 // ── Get Public User Profile ────────────────────────────────────────────────
 export function usePublicUser(userId: string | number) {
   return useQuery({
     queryKey: ["user", userId],
     queryFn: () => getUserProfile(userId),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 }
 
-// ── Get Current User (Own Profile) ─────────────────────────────────────────
+//── Get Current User (Own Profile) ─────────────────────────────────────────
 export function useCurrentUser() {
-  const { user } = useAuthStore();
-  
+  const { user, setUser } = useAuthStore();
+  const token = getToken();
+
   return useQuery({
-    queryKey: ["user", "me", user?.id],
-    queryFn: () => {
-      if (!user?.id) throw new Error("Not authenticated");
-      return getUserProfile(user.id);
+    queryKey: ["user", "me"],
+    queryFn: async () => {
+      const userData = await getCurrentUser();
+      setUser(userData);
+      return userData;
     },
-    enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!token,
   });
 }
 
@@ -41,18 +44,16 @@ export function useUpdateProfile() {
       return updateUserProfile(user.id, data);
     },
     onSuccess: () => {
-      // Invalidate and refetch user data
-      queryClient.invalidateQueries({ queryKey: ["user", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["user", "me"] });
     },
   });
 }
 
-// ── Get All Users (for search/mentions) ────────────────────────────────────
+// ── Get All Users ──────────────────────────────────────────────────────────
 export function useUsers() {
   return useQuery({
     queryKey: ["users"],
     queryFn: getAllUsers,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
   });
 }

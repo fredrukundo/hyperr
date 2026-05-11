@@ -8,6 +8,67 @@ require('dotenv').config();
 const INFO = process.env.INFO_MODE || false;
 const DEBUG = process.env.DEBUG_MODE || false;
 
+// for a logged-in user, change password
+const isAuthorize = require("../middleware/authorize");
+
+route.post("/change-password", isAuthorize, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+      return res.status(400).json({
+        error: { code: "MISSING_FIELDS" },
+      });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({
+        error: { code: "WEAK_PASSWORD" },
+      });
+    }
+
+    const userId = req.user.id;
+
+    const userResult = await pool.query(
+      "SELECT password FROM users WHERE id = $1",
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({
+        error: { code: "INVALID_USER" },
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    const match = await bcrypt.compare(
+      current_password,
+      user.password
+    );
+
+    if (!match) {
+      return res.status(400).json({
+        error: { code: "INVALID_CREDENTIALS" },
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    await pool.query(
+      "UPDATE users SET password = $1 WHERE id = $2",
+      [hashedPassword, userId]
+    );
+
+    return res.status(200).json({
+      message: "PASSWORD_CHANGED_SUCCESS",
+    });
+  } catch (error) {
+    return res.status(400).json({
+      error: { code: "GENERAL_ERROR" },
+    });
+  }
+});
 route.post('/reset-password/request', async (req, res) => {
     try {
         let { email_username } = req.body;

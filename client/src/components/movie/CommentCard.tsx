@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, Star } from "lucide-react";
 import { Comment } from "@/types/comment.types";
 import { useAuthStore } from "@/store/auth.store";
 import { useUpdateComment, useDeleteComment } from "@/hooks/useComments";
 import { useToastStore } from "@/store/toast.store";
 import Avatar from "@/components/common/Avatar";
 import { sanitizeText } from "@/lib/sanitize";
+import { useConfirmStore } from "@/store/confirm.store";
 
 interface CommentCardProps {
   comment: Comment;
@@ -22,6 +23,8 @@ export default function CommentCard({ comment }: CommentCardProps) {
 
   const updateComment = useUpdateComment();
   const deleteComment = useDeleteComment();
+
+  const confirm = useConfirmStore((state) => state.confirm);
 
   // Check if current user owns this comment
   const isOwner = user?.id && String(comment.user_id) === String(user.id);
@@ -46,10 +49,16 @@ export default function CommentCard({ comment }: CommentCardProps) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this comment?")) return;
+    
+    const confirmed = await confirm("Delete this coomment?");
+
+    if (!confirmed) return;
 
     try {
-      await deleteComment.mutateAsync(comment.id);
+      await deleteComment.mutateAsync({
+        commentId: comment.id,
+        movieId: comment.movie_id,
+      });
       success("Comment deleted!");
     } catch (err: any) {
       error(err.message || "Failed to delete comment");
@@ -152,10 +161,35 @@ export default function CommentCard({ comment }: CommentCardProps) {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-foreground leading-relaxed">
-          {sanitizeText(comment.content)}
-        </p>
-      )}
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  size={16}
+                  className={
+                    star <= comment.rate
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-gray-300"
+                  }
+                />
+              ))}
+
+              <span className="ml-1 text-xs text-muted-foreground">
+                {comment.rate}/5
+              </span>
+            </div>
+
+            <p className="text-sm text-foreground leading-relaxed">
+              {sanitizeText(comment.content)}
+            </p>
+        </div>
+
+      )
+
+        
+      }
     </div>
   );
 }

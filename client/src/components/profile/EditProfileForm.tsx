@@ -7,7 +7,11 @@ import { z } from "zod";
 import { Save } from "lucide-react";
 import { useCurrentUser, useUpdateProfile } from "@/hooks/useUser";
 import { useToastStore } from "@/store/toast.store";
+import { User } from "@/types/user.types";
 
+interface EditProfileFormProps {
+  user: User;
+}
 const editProfileSchema = z.object({
   username: z
     .string()
@@ -30,12 +34,15 @@ const editProfileSchema = z.object({
 
 type EditProfileData = z.infer<typeof editProfileSchema>;
 
-export default function EditProfileForm() {
-  const { data: user, refetch } = useCurrentUser();
+
+export default function EditProfileForm({
+  user,
+}: EditProfileFormProps) {
+  // const { data: user, refetch } = useCurrentUser();
   const updateProfile = useUpdateProfile();
   const { success, error, info } = useToastStore(); // ← Fixed
 
-  const {
+const {
     register,
     handleSubmit,
     reset,
@@ -44,46 +51,38 @@ export default function EditProfileForm() {
     resolver: zodResolver(editProfileSchema),
   });
 
-  // Populate form with current user data
   useEffect(() => {
-    if (user) {
-      reset({
-        username: user.username || "",
-        email: user.email || "",
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-      });
-    }
+    reset({
+      username: user.username ?? "",
+      email: user.email ?? "",
+      first_name: user.first_name ?? "",
+      last_name: user.last_name ?? "",
+    });
   }, [user, reset]);
 
   const onSubmit = async (data: EditProfileData) => {
     try {
-      // Only send changed fields
-      const updates: any = {};
-      
-      if (data.username !== user?.username) updates.username = data.username;
-      if (data.email !== user?.email) updates.email = data.email;
-      if (data.first_name !== user?.first_name) updates.first_name = data.first_name;
-      if (data.last_name !== user?.last_name) updates.last_name = data.last_name;
+      const updates: Partial<EditProfileData> = {};
 
-      // Check if anything changed
+      if (data.username !== user.username) updates.username = data.username;
+      if (data.email !== user.email) updates.email = data.email;
+      if (data.first_name !== user.first_name)
+        updates.first_name = data.first_name;
+      if (data.last_name !== user.last_name)
+        updates.last_name = data.last_name;
+
       if (Object.keys(updates).length === 0) {
-        info("No changes to save"); // ← Fixed
+        info("No changes to save");
         return;
       }
 
       await updateProfile.mutateAsync(updates);
 
-      success("Profile updated successfully"); // ← Fixed
-      
-      // Refetch user data
-      await refetch();
+      success("Profile updated successfully");
     } catch (err: any) {
-      error(err.message || "Failed to update profile"); // ← Fixed
+      error(err.message || "Failed to update profile");
     }
   };
-
-  if (!user) return null;
 
   return (
     <div className="bg-card border-2 border-border rounded-2xl p-6">

@@ -6,9 +6,16 @@ import Avatar from "@/components/common/Avatar";
 import { useCurrentUser } from "@/hooks/useUser";
 import { useUpdateProfile } from "@/hooks/useUser";
 import { useToastStore } from "@/store/toast.store";
+import { User } from "@/types/user.types";
 
-export default function ProfilePictureUpload() {
-  const { data: user, refetch } = useCurrentUser();
+interface ProfilePictureUploadProps {
+  user: User;
+}
+
+export default function ProfilePictureUpload({
+  user,
+}: ProfilePictureUploadProps) {
+  // const { data: user, refetch } = useCurrentUser();
   const updateProfile = useUpdateProfile();
   const { success, error } = useToastStore(); // ← Fixed
   
@@ -51,13 +58,10 @@ export default function ProfilePictureUpload() {
         profile_picture: file,
       });
 
-      success("Profile picture updated successfully"); // ← Fixed
+      success("Profile picture updated successfully");
       setPreview(null);
-      
-      // Refetch user data to get new profile picture URL
-      await refetch();
     } catch (err: any) {
-      error(err.message || "Failed to upload profile picture"); // ← Fixed
+      error(err.message || "Failed to upload profile picture");
       setPreview(null);
     } finally {
       setUploading(false);

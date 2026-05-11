@@ -16,16 +16,34 @@ interface ProfilePageProps {
 export default function ProfilePage({ params }: ProfilePageProps) {
   const { id } = use(params);
   const { user: currentUser } = useAuthStore();
-  const { data: profile, isLoading, isError, refetch } = usePublicUser(id);
 
-  const isOwnProfile = currentUser?.id === id || currentUser?.id === parseInt(id);
+  // ✅ Handle /profile/me safely
+  const isMeRoute = id === "me";
 
-  // ── Loading ──────────────────────────────────────────────────────────
+  // If accessing /profile/me but user not loaded yet → wait
+  if (isMeRoute && !currentUser?.id) {
+    return <LoadingSpinner fullScreen text="Loading profile..." />;
+  }
+
+  // Resolve actual ID
+  const resolvedId = isMeRoute
+    ? String(currentUser?.id)
+    : id;
+
+  // ✅ Fetch profile safely
+  const {
+    data: profile,
+    isLoading,
+    isError,
+    refetch,
+  } = usePublicUser(resolvedId);
+
+  // ✅ Loading state
   if (isLoading) {
     return <LoadingSpinner fullScreen text="Loading profile..." />;
   }
 
-  // ── Error ────────────────────────────────────────────────────────────
+  // ✅ Error state
   if (isError || !profile) {
     return (
       <ErrorMessage
@@ -35,7 +53,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
     );
   }
 
-  // Backend returns: first_name, last_name, profile_picture
+  // ✅ Determine ownership properly
+  const isOwnProfile = currentUser?.id === profile.id;
+
   const firstName = profile.first_name || "";
   const lastName = profile.last_name || "";
   const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
@@ -43,7 +63,7 @@ export default function ProfilePage({ params }: ProfilePageProps) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
 
-      {/* ── Back button ── */}
+      {/* Back button */}
       <Link
         href="/library"
         className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-[#2872A1] transition-colors"
@@ -52,21 +72,22 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         Back to Library
       </Link>
 
-      {/* ── Profile Card ── */}
+      {/* Profile Card */}
       <div className="bg-card border-2 border-border rounded-3xl overflow-hidden">
 
         {/* Banner */}
         <div className="h-32 bg-gradient-to-r from-[#2872A1] to-[#4A90B8] relative">
-          <div className="absolute inset-0 opacity-20"
+          <div
+            className="absolute inset-0 opacity-20"
             style={{
-              backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)",
+              backgroundImage:
+                "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)",
               backgroundSize: "30px 30px",
             }}
           />
         </div>
 
         <div className="px-6 pb-6">
-          {/* Avatar overlapping banner */}
           <div className="flex items-end justify-between -mt-12 mb-4">
             <div className="ring-4 ring-card rounded-full z-40">
               <Avatar
@@ -78,7 +99,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
               />
             </div>
 
-            {/* Edit button if own profile */}
             {isOwnProfile && (
               <Link
                 href="/settings"
@@ -90,7 +110,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             )}
           </div>
 
-          {/* Name & username */}
           <div className="space-y-1 mb-6">
             <h1 className="text-2xl font-black text-foreground">
               {firstName} {lastName}
@@ -98,23 +117,25 @@ export default function ProfilePage({ params }: ProfilePageProps) {
             <p className="text-muted-foreground font-medium">
               @{profile.username}
             </p>
-            
-            {/* Show email only on own profile */}
+
             {isOwnProfile && profile.email && (
               <p className="text-sm text-muted-foreground">
                 {profile.email}
               </p>
             )}
-            
-            {/* Show language preference on own profile */}
+
             {isOwnProfile && profile.preferred_language && (
               <p className="text-xs text-muted-foreground mt-2">
-                Language: {profile.preferred_language === "en" ? "English" : profile.preferred_language === "fr" ? "Français" : profile.preferred_language}
+                Language:{" "}
+                {profile.preferred_language === "en"
+                  ? "English"
+                  : profile.preferred_language === "fr"
+                  ? "Français"
+                  : profile.preferred_language}
               </p>
             )}
           </div>
 
-          {/* Stats row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-secondary/50 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-10 h-10 bg-[#CBDDE9] dark:bg-[#2872A1]/20 rounded-xl flex items-center justify-center">
@@ -147,7 +168,6 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         </div>
       </div>
 
-      {/* ── Own profile note ── */}
       {isOwnProfile && (
         <div className="bg-[#CBDDE9]/30 dark:bg-[#2872A1]/10 border-2 border-[#2872A1]/20 rounded-2xl p-4 flex items-center gap-3">
           <span className="text-2xl">👋</span>

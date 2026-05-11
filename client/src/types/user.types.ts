@@ -23,8 +23,9 @@ export interface UpdateUserData {
 }
 
 export interface UserProfileResponse {
+  id: number
   username: string;
-  email?: string;  // Only if own profile
+  email?: string;
   profile_picture?: string;
   first_name: string;
   last_name: string;

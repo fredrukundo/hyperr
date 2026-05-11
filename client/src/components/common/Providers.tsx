@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUIStore } from "@/store/ui.store";
+import { LanguageProvider } from "@/providers/LanguageProvider"; // ✅ ADD
+import ConfirmModal from "./ConfirmModal";
 
 // ── Stable QueryClient ─────────────────────────────────────────────────────
 const queryClient = new QueryClient({
@@ -15,7 +17,6 @@ const queryClient = new QueryClient({
   },
 });
 
-// ── Theme initializer: runs only on client ─────────────────────────────────
 function ThemeInitializer() {
   const { theme } = useUIStore();
 
@@ -26,7 +27,6 @@ function ThemeInitializer() {
   return null;
 }
 
-// ── Main Providers ─────────────────────────────────────────────────────────
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
@@ -36,8 +36,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {mounted && <ThemeInitializer />}
-      {children}
+      <LanguageProvider>
+        {mounted && <ThemeInitializer />}
+        {children}
+        <ConfirmModal/>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }

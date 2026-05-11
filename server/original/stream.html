@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie Streaming</title>
+
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    video {
+      width: 90%;
+      max-width: 1200px;
+      border-radius: 10px;
+      background: black;
+    }
+  </style>
+</head>
+<body>
+
+  <video id="player" controls autoplay>
+    Your browser does not support video playback.
+  </video>
+
+  <script>
+    // Your backend streaming endpoint
+    const movieId = "76195";
+
+    const streamUrl =`http://localhost:7002/movies/live/${movieId}/stream`;
+
+    const player = document.getElementById("player");
+
+    // Set video source
+    player.src = streamUrl;
+
+    // Optional events
+    player.addEventListener("waiting", () => {
+      console.log("Buffering...");
+    });
+
+    player.addEventListener("playing", () => {
+      console.log("Playing...");
+    });
+
+    player.addEventListener("pause", () => {
+      console.log("Paused");
+    });
+
+    player.addEventListener("ended", () => {
+      console.log("Movie finished");
+    });
+  </script>
+
+</body>
+</html>

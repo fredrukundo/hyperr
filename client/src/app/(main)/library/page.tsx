@@ -10,15 +10,17 @@ import MovieCardSkeleton from "@/components/movie/MovieCardSkeleton";
 import InfiniteScroll from "@/components/library/InfiniteScroll";
 import EmptyState from "@/components/common/EmptyState";
 import ErrorMessage from "@/components/common/ErrorMessage";
+import { useLanguage } from "@/providers/LanguageProvider";
 
 export default function LibraryPage() {
+  const { t } = useLanguage();
+
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Omit<MovieFilters, "search">>({
     sortBy: "name",
     sortOrder: "asc",
   });
 
-  // ── Fetch movies with infinite scroll ─────────────────────────────────
   const {
     data,
     isLoading,
@@ -29,10 +31,13 @@ export default function LibraryPage() {
     refetch,
   } = useInfiniteMovies({ search, filters });
 
-  // ── Flatten all pages into one array ───────────────────────────────────
-  const allMovies = data?.pages.flatMap((page) => page.movies) ?? [];
+  // ✅ Flatten + dedupe
+  const allMoviesRaw = data?.pages.flatMap((page) => page.movies) ?? [];
 
-  // ── Handlers ──────────────────────────────────────────────────────────
+  const allMovies = Array.from(
+    new Map(allMoviesRaw.map((movie) => [movie.id, movie])).values()
+  );
+
   const handleSearch = useCallback((value: string) => {
     setSearch(value);
   }, []);
@@ -50,53 +55,59 @@ export default function LibraryPage() {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
 
-      {/* ── Page Header ── */}
+      {/* Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-black text-foreground mb-1 truncate">
-          {search ? `Results for "${search}"` : "Popular Movies"}
+          {search
+            ? `${t.library.resultsFor} "${search}"`
+            : t.library.popularMovies}
         </h1>
         <p className="text-muted-foreground text-sm">
           {search
-            ? "Showing search results from all sources"
-            : "Browse the most popular free and legal movies"}
+            ? t.library.searchDescription
+            : t.library.browseDescription}
         </p>
       </div>
 
-      {/* ── Search ── */}
       <SearchBar
         value={search}
         onChange={handleSearch}
-        placeholder="Search for a movie..."
+        placeholder={t.library.search}
       />
 
-      {/* ── Filters ── */}
       <FilterBar filters={filters} onChange={handleFiltersChange} />
 
-      {/* ── Results count ── */}
       {!isLoading && allMovies.length > 0 && (
         <p className="text-sm text-muted-foreground font-medium">
-          Showing{" "}
-          <span className="text-foreground font-bold">{allMovies.length}</span>{" "}
-          {allMovies.length === 1 ? "movie" : "movies"}
+          {t.library.showing}{" "}
+          <span className="text-foreground font-bold">
+            {allMovies.length}
+          </span>{" "}
+          {allMovies.length === 1
+            ? t.library.movie
+            : t.library.movies}
           {search && (
-            <> for <span className="text-[#2872A1] font-bold">"{search}"</span></>
+            <>
+              {" "}
+              {t.library.for}{" "}
+              <span className="text-[#2872A1] font-bold">
+                "{search}"
+              </span>
+            </>
           )}
         </p>
       )}
 
-      {/* ── Error state ── */}
       {isError && (
         <ErrorMessage
-          message="Failed to load movies. Please check your connection."
+          message={t.common.error}
           onRetry={() => refetch()}
         />
       )}
 
-      {/* ── Loading skeletons (first load only) ── */}
       {isLoading && !isError && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {Array.from({ length: 20 }).map((_, i) => (
@@ -105,15 +116,14 @@ export default function LibraryPage() {
         </div>
       )}
 
-      {/* ── Empty state ── */}
       {!isLoading && !isError && allMovies.length === 0 && (
         <EmptyState
           icon="🔍"
-          title="No movies found"
+          title={t.library.noResults}
           description={
             search
-              ? `We couldn't find any movies matching "${search}". Try a different search term.`
-              : "No movies available right now. Try again later."
+              ? `${t.library.noResultsFor} "${search}"`
+              : t.library.noMoviesAvailable
           }
           action={
             search ? (
@@ -121,19 +131,17 @@ export default function LibraryPage() {
                 onClick={() => handleSearch("")}
                 className="bg-[#2872A1] hover:bg-[#1A4A6B] text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all"
               >
-                Clear Search
+                {t.common.cancel}
               </button>
             ) : undefined
           }
         />
       )}
 
-      {/* ── Movie grid ── */}
       {!isLoading && !isError && allMovies.length > 0 && (
         <MovieGrid movies={allMovies} />
       )}
 
-      {/* ── Infinite scroll trigger ── */}
       {!isLoading && !isError && allMovies.length > 0 && (
         <InfiniteScroll
           hasMore={!!hasNextPage}

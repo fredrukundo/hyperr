@@ -126,14 +126,75 @@ router.get('/', isAuthorize, async (req, res) => {
     }
 });
 
+router.delete("/delete", isAuthorize, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            DELETE FROM users
+            WHERE id = $1
+            RETURNING id
+        `,
+            [req.user.id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({
+                error: { code: "USER_NOT_FOUND" }
+            });
+        }
+
+        return res.status(200).json({message: "Account deleted successfully"});
+
+    } catch (error) {
+        if (DEBUG) {
+            console.error("[ERROR] -> [DELETE] /users/delete :", error);
+        }
+
+        return res.status(400).json({
+        error: { code: "GENERAL_ERROR" }
+        });
+    }
+});
+
+// GET current logged in user
+router.get("/me", isAuthorize, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT id, username, email, profile_picture, first_name, last_name, preferred_language
+       FROM users
+       WHERE id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: { code: "USER_NOT_FOUND" }
+      });
+    }
+
+    return res.status(200).json(result.rows[0]);
+
+  } catch (error) {
+    if (DEBUG) {
+      console.log('[ERROR] -> [GET] /users/me :', error);
+    }
+
+    return res.status(400).json({
+      error: { code: "GENERAL_ERROR" }
+    });
+  }
+});
+
+
 router.get('/:id', isAuthorize, async (req, res) => {
     try {
         const targetID = parseInt(req.params.id);
         const isSelf = req.user.id === targetID;
 
         const query = isSelf 
-        ? 'SELECT username, email, profile_picture, first_name, last_name, preferred_language FROM users WHERE id = $1'
-        : 'SELECT username, profile_picture, first_name, last_name FROM users WHERE id = $1';
+        ? 'SELECT id, username, email, profile_picture, first_name, last_name, preferred_language FROM users WHERE id = $1'
+        : 'SELECT id, username, profile_picture, first_name, last_name FROM users WHERE id = $1';
 
         const result = await pool.query(query, [targetID]);
         if (result.rows.length === 0) {
@@ -287,5 +348,6 @@ router.patch('/:id', isAuthorize, upload.single('profile_picture'), async (req, 
         });
     }
 });
+
 
 module.exports = router;

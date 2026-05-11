@@ -9,6 +9,9 @@ import {
 import { USE_MOCK } from "@/lib/constants";
 import { MOCK_USER } from "@/lib/mockData";
 import { AxiosError } from "axios";
+import { User } from "@/types/user.types";
+import { getCurrentUser } from "./user.service";
+import { useAuthStore } from "@/store/auth.store";
 
 const TOKEN_KEY = "hypertube_token";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -20,7 +23,7 @@ export function saveToken(token: string): void {
       `${TOKEN_KEY}=${token}`,
       `path=/`,
       `max-age=${COOKIE_MAX_AGE}`,
-      `SameSite=Strict`,
+      `SameSite=Lax`,
     ].join("; ");
   }
 }
@@ -28,7 +31,7 @@ export function saveToken(token: string): void {
 export function removeToken(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem(TOKEN_KEY);
-    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Strict`;
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
   }
 }
 
@@ -42,6 +45,11 @@ export function getToken(): string | null {
 export function isAuthenticated(): boolean {
   return !!getToken();
 }
+
+// export async function getCurrentUser(): Promise<User> {
+//   const response = await api.get<User>("/users/me"); // or your correct endpoint
+//   return response.data;
+// }
 
 // ── Mock helper ────────────────────────────────────────────────────────────
 function mockDelay<T>(data: T, ms = 600): Promise<T> {
@@ -81,8 +89,13 @@ export async function login(usernameOrEmail: string, password: string): Promise<
     });
     
     console.log("✅ Login response:", response.data);
+    const token = response.data.token
     
-    saveToken(response.data.token);
+    saveToken(token);
+
+    const user = await getCurrentUser();
+
+    useAuthStore.getState().login(user, token);
     return response.data;
   } catch (error) {
     console.error("❌ Login error:", error);

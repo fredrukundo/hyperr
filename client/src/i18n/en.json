@@ -23,16 +23,27 @@
     "dontHaveAccount": "Don't have an account?"
   },
   "library": {
-    "search": "Search movies...",
-    "filters": "Filters",
-    "sortBy": "Sort by",
-    "genre": "Genre",
-    "year": "Year",
-    "rating": "Rating",
-    "noResults": "No movies found",
-    "watched": "Watched",
-    "unwatched": "Unwatched"
-  },
+  "search": "Search movies...",
+  "filters": "Filters",
+  "sortBy": "Sort by",
+  "genre": "Genre",
+  "year": "Year",
+  "rating": "Rating",
+  "noResults": "No movies found",
+  "watched": "Watched",
+  "unwatched": "Unwatched",
+
+  "popularMovies": "Popular Movies",
+  "resultsFor": "Results for",
+  "browseDescription": "Browse the most popular free and legal movies",
+  "searchDescription": "Showing search results from all sources",
+  "showing": "Showing",
+  "movie": "movie",
+  "movies": "movies",
+  "for": "for",
+  "noResultsFor": "We couldn't find any movies matching",
+  "noMoviesAvailable": "No movies available right now. Try again later."
+},
   "movie": {
     "director": "Director",
     "cast": "Cast",
@@ -58,5 +69,30 @@
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit"
-  }
+  },
+  "comments": {
+  "title": "Comments",
+  "placeholder": "Share your thoughts about this movie...",
+  "characters": "characters",
+  "post": "Post Comment",
+  "posting": "Posting...",
+  "empty": "No comments yet. Be the first to share your thoughts!",
+  "loginToComment": "Please log in to leave a comment",
+  "commentEmpty": "Comment cannot be empty",
+  "commentTooLong": "Comment is too long (max 500 characters)",
+  "posted": "Comment posted!",
+  "failed": "Failed to post comment"
+},
+"settings": {
+  "title": "Settings",
+  "subtitle": "Manage your account preferences",
+  "dangerZone": "Danger Zone",
+  "dangerDescription": "Once you delete your account, there is no going back.",
+  "deleteAccount": "Delete Account",
+  "deleteConfirm": "Are you sure you want to delete your account? This action cannot be undone.",
+  "deleteSuccess": "Account deleted successfully",
+  "deleteError": "Failed to delete account",
+  "loading": "Loading settings...",
+  "loadError": "Failed to load user settings."
+}
 }

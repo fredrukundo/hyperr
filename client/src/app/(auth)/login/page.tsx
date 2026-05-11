@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -9,8 +9,9 @@ import { z } from "zod";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import OAuthButtons from "@/components/auth/OAuthButtons";
 import Divider from "@/components/common/Divider";
-import { login } from "@/services/auth.service";
+import { login, saveToken } from "@/services/auth.service";
 import { useAuthStore } from "@/store/auth.store";
+import { useSearchParams } from "next/navigation";
 
 // ── Validation schema ──────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -33,6 +34,18 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
+   const searchParams = useSearchParams();
+
+   // Check for OAuth errors from URL
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (error) {
+      setServerError(decodeURIComponent(error));
+      // Clean up URL
+      router.replace("/login");
+    }
+  }, [searchParams, router]);
+
   const {
     register,
     handleSubmit,
@@ -46,10 +59,7 @@ export default function LoginPage() {
       setServerError(null);
       
       // Call login with username/email and password
-      const response = await login(data.usernameOrEmail, data.password);
-      
-      // Store user and token in auth store
-      storeLogin(response.user as any, response.token);
+       await login(data.usernameOrEmail, data.password);
       
       // Redirect to library
       router.push("/library");

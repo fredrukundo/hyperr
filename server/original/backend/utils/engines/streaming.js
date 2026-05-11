@@ -1,233 +1,348 @@
+const e = require('express');
+const torrentStream = require('torrent-stream');
 const fs = require('fs');
-const path = require('path');
-const pool = require('../../config/pool');
+const path = require('path')
+const ffmpeg = require('fluent-ffmpeg');
+const trackers = require('../../utils/trackers');
+const pump = require('pump');
+const os = require('os');
+const { PassThrough } = require('stream');
+const { pipeline } = require('stream/promises');
+const { resolve } = require('dns');
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
-let client = null;
-const torrents = new Map();
 
-/* =========================
-   INIT TORRENT CLIENT
-========================= */
-const initClient = async () => {
-    if (client) return client;
+var engines = {};
+const VIDEO_EXTENSIONS = [
+    '.mp4', '.mkv', '.webm', '.mov', '.avi', '.wmv',
+    '.flv', '.m4v', '.3gp', '.mpg', '.mpeg', '.ogv', '.ogg',
+]
 
-    const WebTorrent = (await import('webtorrent')).default;
-
-    client = new WebTorrent({
-        path: path.resolve('./movies')
-    });
-
-    return client;
-};
-
-/* =========================
-   GET VIDEO FILE
-========================= */
-const getVideoFile = (torrent) => {
-    return torrent.files.find(f =>
-        f.name.endsWith('.mp4') || f.name.endsWith('.mkv')
-    );
-};
-
-/* =========================
-   CREATE / GET TORRENT
-========================= */
-const getOrCreateTorrent = async (magnet, movie) => {
-    if (torrents.has(magnet)) {
-        return torrents.get(magnet);
-    }
-
-    const client = await initClient();
-
-    const torrent = await new Promise((resolve) => {
-        client.add(magnet, (t) => resolve(t));
-    });
-
-    torrents.set(magnet, torrent);
-
-    // ✅ Download ONLY (no streaming)
-    const file = getVideoFile(torrent);
-    if (file) file.select();
-
-    torrent.on('done', async () => {
-        try {
-            const file = getVideoFile(torrent);
-            if (!file) return;
-
-            const filePath = path.join(torrent.path, file.path);
-
-            if (fs.existsSync(filePath)) {
-                await pool.query(
-                    'UPDATE movies SET downloaded_path = $1, status = $2 WHERE id = $3',
-                    [filePath, 'downloaded', movie.id]
-                );
-            }
-
-            console.log("✅ Fully downloaded:", torrent.name);
-        } catch (err) {
-            console.log("Torrent done update error:", err.message);
-        }
-    });
-
-    return torrent;
-};
-
-/* =========================
-   USER HISTORY
-========================= */
-const upsertUserHistory = async (userId, movieId, progress = 0) => {
-    try {
-        await pool.query(`
-            UPDATE movies SET last_watched = CURRENT_TIMESTAMP WHERE id = $1
-        `, [movieId]);
-
-        await pool.query(`
-            INSERT INTO user_movie_history (user_id, movie_id, progress)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, movie_id)
-            DO UPDATE SET 
-                progress = EXCLUDED.progress,
-                last_watched = CURRENT_TIMESTAMP
-        `, [userId, movieId, progress]);
-
-    } catch (err) {
-        console.log("History DB error:", err.message);
-    }
-};
-
-/* =========================
-   WAIT UNTIL FILE EXISTS
-========================= */
-const waitForFile = (filePath, timeout = 10000) => {
-    return new Promise((resolve, reject) => {
-        const start = Date.now();
-
-        const check = () => {
-            if (fs.existsSync(filePath)) {
-                return resolve();
-            }
-
-            if (Date.now() - start > timeout) {
-                return reject(new Error("File not created yet"));
-            }
-
-            setTimeout(check, 300);
-        };
-
-        check();
-    });
-};
-
-/* =========================
-   STREAM FROM DISK (PROGRESSIVE)
-========================= */
-const streamFromDiskProgressive = (filePath, req, res) => {
+function getRange(req, fileSize) {
     const range = req.headers.range;
-
-    const stat = fs.statSync(filePath);
-    const fileSize = stat.size;
-
-    // ❌ No range → basic streaming
     if (!range) {
-        res.writeHead(200, {
-            'Content-Type': 'video/mp4',
-            'Content-Length': fileSize,
-        });
-
-        const stream = fs.createReadStream(filePath);
-
-        req.on('close', () => stream.destroy());
-
-        return stream.pipe(res);
+        return null;
     }
-
-    // ✅ Parse range
-    const parts = range.replace(/bytes=/, "").split("-");
+    const parts = range.replace(/bytes=/, '').split('-');
     const start = parseInt(parts[0], 10);
     const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    const chunkSize = (end - start) + 1;
+    return { start, end, chunkSize };
+}
 
-    // ⚠️ Clamp to downloaded size
-    const safeEnd = Math.min(end, fileSize - 1);
+async function initEngine(req, res, movie) {
+    if (engines[movie.torrent_link]) {
+        return engines[movie.torrent_link];
+    }
+    const response = await fetch(movie.torrent_link);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch torrent`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    let options = {
+        path: `./uploads/movies/`,
+        trackers: trackers,
+        dht: true,
+        tracker: true
+    }
+    const engine = torrentStream(buffer, options);
+    engine.isReady = false;
+    engine.on('ready', () => {
+        engine.isReady = true;
+        engines[movie.torrent_link] = engine;
+        console.log(`[torrent] engine ready — ${engine.files.length} files`);
+    });
+    engine.on('idle', () => {
+        const streamFile = findStreamFile(engine);
+        const moviePath = `./uploads/movies/${movie.identifier}/${streamFile.file.name}`;
+        if (streamFile.found &&
+            fs.existsSync(moviePath) &&
+            streamFile.file.length === fs.statSync(moviePath).size) {
+            engine.movieDownloaded = true;
+            engine.moviePath = moviePath;
+        }
+    });
+    engine.on('error', (err) => {
+        console.log("Engine error:", err);
+        engine.destroy(() => { });
+        delete engines[movie.torrent_link];
+    });
+    engine.on('download', (index) => {
+        console.log(`[torrent] piece ${index} downloaded, total: ${(engine.swarm.downloaded / 1024 / 1024).toFixed(1)} MB`);
+    });
+    engine.on('peer', () => {
+        console.log(`[torrent] peers: ${engine.swarm.wires.length}`);
+    });
+    return engine;
+}
 
-    if (start >= fileSize) {
-        return res.status(416).send("Requested range not satisfiable");
+function findStreamFile(engine) {
+    if (!engine.isReady) {
+        throw new Error('Engine is not ready');
+    }
+    const files = engine.torrent.files;
+    if (!files || files.length === 0) {
+        throw new Error('No files found in torrent');
     }
 
-    const chunkSize = (safeEnd - start) + 1;
+    let targetIndex = -1;
+    let targetFile = null;
+    let maxSize = -1;
 
-    const stream = fs.createReadStream(filePath, {
-        start,
-        end: safeEnd
-    });
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExtension = path.extname(file.name).toLowerCase();
 
-    res.writeHead(206, {
-        'Content-Range': `bytes ${start}-${safeEnd}/${fileSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': chunkSize,
-        'Content-Type': 'video/mp4',
-    });
-
-    req.on('close', () => stream.destroy());
-
-    stream.on('error', (err) => {
-        console.log("Stream error:", err.message);
-        if (!res.headersSent) res.status(500).end();
-    });
-
-    stream.pipe(res);
-};
-
-/* =========================
-   MAIN CONTROLLER
-========================= */
-const Streaming = async (magnet, req, res, movie) => {
-    const userId = req.user?.id;
-
-    try {
-        const torrent = await getOrCreateTorrent(magnet, movie);
-
-        const file = getVideoFile(torrent);
-
-        if (!file) {
-            return res.status(404).send('No video file found');
+        if (VIDEO_EXTENSIONS.includes(fileExtension)) {
+            if (fileExtension === '.mp4' || fileExtension === '.webm') {
+                targetIndex = i;
+                targetFile = file;
+                break; // Prefer mp4/webm, stop searching
+            }
+            // if (file.length > maxSize) {
+            //     maxSize = file.length;
+            //     targetIndex = i;
+            //     targetFile = file;
+            // }
         }
+    }
+    if (!targetFile) {
+        return { found: false, index: -1, file: null, needConvert: false, mimeType: null };
+    }
+    const fileExtension = path.extname(targetFile.name).toLowerCase();
+    const needConvert = !(fileExtension === '.mp4' || fileExtension === '.webm');
+    const mimeType = needConvert ? 'video/webm' : (fileExtension === '.mp4' ? 'video/mp4' : 'video/webm');
+    return { found: true, index: targetIndex, file: targetFile, needConvert, mimeType };
+}
 
-        const filePath = path.join(torrent.path, file.path);
+function awaitEngineReady(engine, timeoutMs) {
+    return new Promise((resolve, reject) => {
+        const onReady = () => {
+            cleanup();
+            resolve();
+        };
+        const onError = (err) => {
+            cleanup();
+            reject(err);
+        };
+        const onTimeout = () => {
+            cleanup();
+            reject(new Error('ENGINE_READY_TIMEOUT'));
+        };
 
-        // ⏳ Wait until file appears
+        const cleanup = () => {
+            clearTimeout(timer);
+            engine.off('ready', onReady);
+            engine.off('error', onError);
+        };
+
+        engine.once('ready', onReady);
+        engine.once('error', onError);
+
+        const timer = setTimeout(onTimeout, timeoutMs);
+    });
+}
+
+function convertAndStream(res, targetFile, moviePath) {
+    res.writeHead(200, {
+        "Content-Type": "video/webm",
+        "Transfer-Encoding": "chunked"
+    });
+    // const { stream: inputStream, stop } = streamFromDisk(moviePath, 0, targetFile.length - 1);
+    const inputStream = targetFile.createReadStream();
+    let command = ffmpeg(inputStream)
+        .audioBitrate(128)
+        .audioCodec("libvorbis")
+        .audioChannels(2)
+        .videoBitrate(1024)
+        .videoCodec("libvpx")
+        .outputFormat("webm")
+        .outputOptions([
+            "-cpu-used 2",
+            "-deadline realtime",
+            "-preset ultrafast",
+            "-error-resilient 1",
+            `-threads ${Math.min(os.availableParallelism(), 16)}`,
+        ]);
+
+    command
+        .on("error", (err, _stdout, stderr) => {
+            console.error("FFmpeg stderr: " + stderr);
+        })
+        .on("end", () => {
+            console.log("\nConversion finished successfully!");
+        });
+    res.on('close', () => {
+        console.log("Client disconnected, stopping conversion");
+        stop();
+        command.kill('SIGKILL');
+    });
+    command.pipe(res, { end: true });
+}
+
+async function waitForFileToGrow(filePath) {
+    const start = Date.now();
+    const minBytes = 1 << 20 // 1MB;
+    const maxWaitTime = 60000; // 60 seconds
+
+    while (Date.now() - start < maxWaitTime) {
         try {
-            await waitForFile(filePath, 8000);
+            const stat = await fs.promises.stat(filePath);
+            if (stat.size >= minBytes)
+                return stat.size;
         } catch {
-            return res.status(202).json({
-                message: "Initializing download...",
-            });
+            // file doesn't exist yet
         }
-
-        // 🎬 Stream while downloading
-        if (userId) {
-            await upsertUserHistory(userId, movie.id, 0.1);
-        }
-
-        return streamFromDiskProgressive(filePath, req, res);
-
-    } catch (err) {
-        console.error("❌ Global error:", err);
-
-        if (!res.headersSent) {
-            res.status(500).send('Streaming error');
-        }
+        await new Promise(r => setTimeout(r, 250));
     }
+
+    throw new Error('FILE_NOT_READY');
+}
+
+function streamFromDisk(filePath, start, end) {
+    const out = new PassThrough();
+    let offset = start;
+    let stopped = false;
+    let currentChunk = null;
+    const pollMs = 250;
+
+    const stop = () => {
+        if (stopped) return;
+        stopped = true;
+        if (currentChunk) currentChunk.destroy();
+        if (!out.destroyed) out.end();
+    };
+
+    (async () => {
+        while (!stopped && offset <= end) {
+            let size;
+            try {
+                size = (await fs.promises.stat(filePath)).size;
+            } catch {
+                await delay(pollMs);
+                continue;
+            }
+
+            // Wait until we have at least 1 byte available at `offset`
+            if (size <= offset) {
+                await delay(pollMs);
+                continue;
+            }
+
+            const chunkEnd = Math.min(size - 1, end);
+            currentChunk = fs.createReadStream(filePath, { start: offset, end: chunkEnd });
+            try {
+                await pipeline(currentChunk, out, { end: false });
+            } finally {
+                currentChunk = null;
+            }
+
+            offset = chunkEnd + 1;
+        }
+
+        if (!out.destroyed) out.end();
+    })().catch(err => out.destroy(err));
+
+    return { stream: out, stop };
+}
+
+function sendStream(statusCode, res, inputStream, mimeType, fileSize) {
+    res.writeHead(statusCode, {
+        "Content-Length": fileSize,
+        "Content-Type": mimeType,
+        "Accept-Ranges": "bytes"
+    });
+    inputStream.pipe(res);
+}
+
+async function pipeStream(req, res, movie) {
+    const engine = await initEngine(req, res, movie);
+    if (!engine.isReady) {
+        await awaitEngineReady(engine, 20000);
+    }
+    if (engine.movieDownloaded) {
+        const moviePath = engine.moviePath;
+        const fileSize = fs.statSync(moviePath).size;
+        const range = getRange(req, fileSize);
+        console.log(`Movie already downloaded, streaming from disk. Range: ${range || 'none'}`);
+        engine.disconnect(() => { });
+        engine.destroy(() => { });
+        delete engines[movie.torrent_link];
+        if (range) {
+            res.writeHead(206, {
+                "Accept-Ranges": "bytes",
+                "Content-Range": `bytes ${range.start}-${range.end}/${fileSize}`,
+                "Content-Length": range.chunkSize,
+                "Content-Type": "video/mp4"
+            });
+            const inoutStream = fs.createReadStream(moviePath, { start: range.start, end: range.end });
+            inoutStream.pipe(res);
+            return;
+        } else {
+            res.writeHead(200, {
+                "Content-Length": fileSize,
+                "Content-Type": "video/mp4",
+                "Accept-Ranges": "bytes"
+            });
+            const inoutStream = fs.createReadStream(moviePath);
+            inoutStream.pipe(res);
+        }
+        return;
+    }
+    const { found, index, file, needConvert, mimeType } = findStreamFile(engine);
+    if (!found) {
+        throw new Error('NO_STREAM_FILE_FOUND');
+    }
+
+    const targetFile = engine.files[index];
+    const fileSize = file.length;
+    const rangeParams = getRange(req, fileSize);
+    targetFile.select();
+    let moviePath = `./uploads/movies/${movie.identifier}/${targetFile.name}`;
+    //await waitForFileToGrow(moviePath);
+    movie.downloaded_path = moviePath;
+    if (needConvert) {
+        convertAndStream(res, targetFile, moviePath);
+    } else {
+        // If the client sent a Range header but it's invalid/unsupported, return 416.
+        if (req.headers.range && !rangeParams) {
+            res.writeHead(416, {
+                "Content-Range": `bytes */${fileSize}`,
+                "Accept-Ranges": "bytes"
+            });
+            return res.end();
+        }
+        const inputStream = rangeParams ? targetFile.createReadStream({ start: rangeParams.start, end: rangeParams.end }) : targetFile.createReadStream();
+        const stopStream = () => {
+            inputStream.destroy();
+        };
+        if (!rangeParams) {
+            // const { stream: inputStream, stop } = streamFromDisk(moviePath, 0, fileSize - 1);
+            res.on('close', stopStream);
+            res.writeHead(200, {
+                "Content-Length": fileSize,
+                "Content-Type": mimeType,
+                "Accept-Ranges": "bytes"
+            });
+            inputStream.pipe(res);
+        } else {
+            // const { stream: inputStream, stop } = streamFromDisk(moviePath, start, end);
+            res.on('close', () => {
+                stopStream();
+            });
+            res.writeHead(206, {
+                "Accept-Ranges": "bytes",
+                "Content-Range": "bytes " + rangeParams.start + "-" + rangeParams.end + "/" + fileSize,
+                "Content-Length": rangeParams.chunkSize,
+                "Content-Type": mimeType
+            });
+            inputStream.pipe(res);
+        }
+
+    }
+}
+
+module.exports = {
+    pipeStream
 };
-
-module.exports = Streaming;
-
-/*
-sudo apt update
-sudo apt install transmission-daemon -y
-
-service transmission-daemon start
-
-apt update && apt install qbittorrent-nox -y
-
-qbittorrent-nox
-*/

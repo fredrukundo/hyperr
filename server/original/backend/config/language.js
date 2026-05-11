@@ -1,7 +1,6 @@
 const languages = {
   en: "English",
-  fr: "French",
-  ar: "Arabic"
+  fr: "French"
 };
 
 module.exports = languages

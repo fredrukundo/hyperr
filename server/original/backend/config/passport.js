@@ -55,6 +55,42 @@ if (process.env.FORTYTWO_CLIENT_ID && process.env.FORTYTWO_CLIENT_SECRET){
         try{
             let result = await pool.query('SELECT * FROM users WHERE auth_provider = $1 AND provider_id = $2', ['42', profile.id]);
             let user = result.rows[0] || null;
+
+            if (!user && profile?.emails) {
+                try {
+
+                    const email =
+                        profile?.emails?.[0]?.value ||
+                        `${profile.username}@student.42.fr`;
+
+                    const res = await pool.query(
+                        `
+                        SELECT * FROM users
+                        WHERE email = $1 AND auth_provider != $2
+                        `,
+                        [email, '42']
+                    );
+
+                    if (res.rows.length > 0) {
+                        return cb(
+                            new Error(
+                                'An account with this email already exists using another login method.'
+                            ),
+                            null
+                        );
+                    }
+
+                } catch (error) {
+
+                    return cb(
+                        new Error(
+                            'You cannot use this oauth with this account. Try another account.'
+                        ),
+                        null
+                    );
+                }
+            }
+
             
             if (!user) {
                 console.log('=> : ', profile)

@@ -2,14 +2,22 @@
 
 import { useState } from "react";
 import { Globe, ChevronDown } from "lucide-react";
-import { useUIStore } from "@/store/ui.store";
 import { SUPPORTED_LANGUAGES } from "@/lib/constants";
+import { useLanguage } from "@/providers/LanguageProvider";
 
 export default function LanguageSwitcher() {
-  const { language, setLanguage } = useUIStore();
+  const { lang, setLang } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
-  const currentLang = SUPPORTED_LANGUAGES.find((l) => l.code === language);
+  const currentLang = SUPPORTED_LANGUAGES.find(
+    (l) => l.code === lang
+  );
+
+  const handleChange = (code: string) => {
+    setLang(code);
+    localStorage.setItem("app_language", code);
+    setIsOpen(false);
+  };
 
   return (
     <div className="relative">
@@ -21,35 +29,34 @@ export default function LanguageSwitcher() {
         <span>{currentLang?.code.toUpperCase()}</span>
         <ChevronDown
           size={14}
-          className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          className={`transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
         />
       </button>
 
       {isOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
 
-          {/* Dropdown */}
           <div className="absolute right-0 top-full mt-2 z-20 bg-card border-2 border-border rounded-xl shadow-xl overflow-hidden min-w-[130px]">
-            {SUPPORTED_LANGUAGES.map((lang) => (
+            {SUPPORTED_LANGUAGES.map((languageOption) => (
               <button
-                key={lang.code}
-                onClick={() => {
-                  setLanguage(lang.code);
-                  setIsOpen(false);
-                }}
+                key={languageOption.code}
+                onClick={() => handleChange(languageOption.code)}
                 className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors text-left ${
-                  language === lang.code
+                  lang === languageOption.code
                     ? "bg-[#2872A1] text-white"
                     : "text-foreground hover:bg-secondary"
                 }`}
               >
-                <span>{lang.code === "en" ? "🇬🇧" : "🇫🇷"}</span>
-                {lang.label}
+                <span>
+                  {languageOption.code === "en" ? "🇬🇧" : "🇫🇷"}
+                </span>
+                {languageOption.label}
               </button>
             ))}
           </div>

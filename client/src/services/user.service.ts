@@ -9,6 +9,9 @@ import {
 import { USE_MOCK } from "@/lib/constants";
 import { MOCK_USERS } from "@/lib/mockData";
 import { AxiosError } from "axios";
+import { useLanguage } from "@/providers/LanguageProvider";
+
+
 
 // ── Error message mapper ───────────────────────────────────────────────────
 function getUserErrorMessage(code: string): string {
@@ -54,11 +57,6 @@ export async function getAllUsers(): Promise<UserListItem[]> {
 
 // ── Get User Profile ───────────────────────────────────────────────────────
 export async function getUserProfile(userId: string | number): Promise<User> {
-  if (USE_MOCK) {
-    const user = MOCK_USERS.find((u) => u.id === userId.toString());
-    if (!user) throw new Error("User not found");
-    return mockDelay(user);
-  }
 
   try {
     console.log("📤 Fetching user profile:", userId);
@@ -69,7 +67,7 @@ export async function getUserProfile(userId: string | number): Promise<User> {
     
     // Convert backend response to User type
     return {
-      id: userId,
+      id: response.data.id,
       username: response.data.username,
       email: response.data.email,
       first_name: response.data.first_name,
@@ -157,23 +155,16 @@ export async function updateUserProfile(
 }
 
 // ── Get Current User (helper) ──────────────────────────────────────────────
-export async function getCurrentUser(): Promise<User | null> {
-  if (typeof window === "undefined") return null;
-  
-  const token = localStorage.getItem("hypertube_token");
-  if (!token) return null;
+export async function getCurrentUser(): Promise<User> {
+  const response = await api.get<UserProfileResponse>("/users/me");
 
-  // Decode JWT to get user ID (basic decode, not validation)
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    const userId = payload.id || payload.userId || payload.sub;
-    
-    if (userId) {
-      return await getUserProfile(userId);
-    }
-  } catch (error) {
-    console.error("Failed to decode token:", error);
-  }
-
-  return null;
+  return {
+    id: response.data.id,
+    username: response.data.username,
+    email: response.data.email,
+    first_name: response.data.first_name,
+    last_name: response.data.last_name,
+    profile_picture: response.data.profile_picture,
+    preferred_language: response.data.preferred_language,
+  };
 }

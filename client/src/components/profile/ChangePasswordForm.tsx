@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import { useToastStore } from "@/store/toast.store";
+import api from "@/lib/axios";
 
 const passwordSchema = z
   .object({
@@ -22,7 +23,7 @@ type PasswordFormData = z.infer<typeof passwordSchema>;
 
 export default function ChangePasswordForm() {
   const { success, error } = useToastStore();
-  
+
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -38,32 +39,22 @@ export default function ChangePasswordForm() {
 
   const onSubmit = async (data: PasswordFormData) => {
     try {
-      // TODO: Implement password change endpoint when backend provides it
-      // For now, just show a message
-      
-      console.log("Password change requested:", {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
+      await api.post("/security/change-password", {
+        current_password: data.currentPassword,
+        new_password: data.newPassword,
       });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      success("Password change feature coming soon!");
-      reset();
-      
-      // When backend is ready, uncomment and use this:
-      /*
-      await api.post("/api/auth/change-password", {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      });
-      
       success("Password changed successfully");
       reset();
-      */
     } catch (err: any) {
-      error(err.message || "Failed to change password");
+      const message =
+        err?.response?.data?.error?.code === "INVALID_CREDENTIALS"
+          ? "Current password is incorrect"
+          : err?.response?.data?.error?.code === "WEAK_PASSWORD"
+          ? "Password must be at least 6 characters"
+          : "Failed to change password";
+
+      error(message);
     }
   };
 
@@ -71,10 +62,12 @@ export default function ChangePasswordForm() {
     <div className="bg-card border-2 border-border rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-4">
         <Lock size={20} className="text-[#2872A1]" />
-        <h2 className="text-lg font-black text-foreground">Change Password</h2>
+        <h2 className="text-lg font-black text-foreground">
+          Change Password
+        </h2>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Current Password */}
         <div className="space-y-1.5">
           <label className="text-sm font-semibold text-foreground block">

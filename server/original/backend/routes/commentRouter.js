@@ -26,6 +26,9 @@ router.get('/movies/:id', async (req, res) => {
                 comments.id,
                 comments.content,
                 comments.created_at,
+                comments.user_id,
+                comments.rate,
+                comments.movie_id,
                 users.username
             FROM comments
             JOIN users ON users.id = comments.user_id
@@ -69,6 +72,8 @@ router.get('/', async (req, res) => {
                 comments.id,
                 comments.content,
                 comments.created_at,
+                comments.user_id,
+                comments.movie_id,
                 users.username
             FROM comments
             JOIN users ON users.id = comments.user_id
@@ -101,6 +106,8 @@ router.get('/:id', async (req, res) => {
                 comments.id,
                 comments.content,
                 comments.created_at,
+                comments.user_id,
+                comments.movie_id,
                 users.username
             FROM comments
             JOIN users ON users.id = comments.user_id
@@ -131,18 +138,23 @@ router.post('/', isAuthorize, async (req, res) => {
     
     try {
         const user_id = req.user.id;
-        const { comment, movie_id } = req.body || { comment : null, movie_id: null };
+        const { comment, movie_id, rate } = req.body || { comment : null, movie_id: null, rate: null };
     
         if (!comment || !movie_id) {
             return res.status(400).json({
                 error: { code: 'MISSING_COMMENT_OR_MOVIE_ID' }
             });
         }
+        if (!(rate >= 0 && rate <= 5)){
+            return res.status(400).json({
+                error: { code: 'RATE_ONLY_FROM_0_TO_5' }
+            });
+        }
         const result = await pool.query(`
-            INSERT INTO comments (content, user_id, movie_id)
-            VALUES ($1, $2, $3)
+            INSERT INTO comments (content, user_id, movie_id, rate)
+            VALUES ($1, $2, $3, $4)
             RETURNING *;
-        `, [comment, user_id, movie_id]);
+        `, [comment, user_id, movie_id, rate]);
 
         return res.status(201).json({success : {data :result.rows[0]}});
 

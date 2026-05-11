@@ -3,7 +3,7 @@ const pool = require('../config/pool');
 const isAuthorize = require('../middleware/authorize');
 const AllEngines = require('../utils/engines/engines');
 const { archiveMovieById, saveArchiveMovie } = require('../utils/engines/archive');
-const Streaming = require('../utils/engines/streaming');
+const streaming = require('../utils/engines/streaming');
 const { saveYTSMovie, YTSMovieById } = require('../utils/engines/yts');
 
 const router = express.Router();
@@ -88,25 +88,27 @@ router.get('/search', isAuthorize, async (req, res) => {
 });
 
 
-/*
-router.get('/live/:id/stream', isAuthorize, async (req, res) => {
+router.get('/live/:id/stream', async (req, res) => {
     try {
         const { id } = req.params;
-
-        const existing = await pool.query(
-            `SELECT * FROM movies WHERE id = $1`,
+        const existingMovie = await pool.query(
+            `SELECT id, identifier, torrent_link FROM movies WHERE identifier = $1 LIMIT 1`,
             [id]
         );
-
-        if (existing.rows.length === 0) {
+        if (!existingMovie || existingMovie.rows.length === 0) {
+            console.log('MOVIE NOT FOUND');
             return res.status(400).json({
                 error: { code: 'MOVIE_NOT_FOUND' }
             });
         }
-
-        const movie = existing.rows[0];
-
-        await Streaming(magnet, req, res, movie);
+        const movie = existingMovie.rows[0];
+        if (!movie.torrent_link) {
+            return res.status(400).json({
+                error: { code: 'TORRENT_LINK_NOT_AVAILABLE' }
+            });
+        }
+        await streaming.pipeStream(req, res, movie);
+        // await pipeController.piping(req, res, movie);
 
     } catch (error) {
         if (DEBUG) {
@@ -117,7 +119,7 @@ router.get('/live/:id/stream', isAuthorize, async (req, res) => {
             error: { code: 'SERVER_ERROR' }
         });
     }
-});*/
+});
 
 const saveMovie = async (movie, engine) => {
     try {
@@ -137,7 +139,7 @@ const saveMovie = async (movie, engine) => {
                 FROM comments
                 WHERE comments.movie_id = $1
                 `,
-                [id]
+                [existing.rows[0].id]
             );
 
             const commentsCount = commentsResult.rowCount;

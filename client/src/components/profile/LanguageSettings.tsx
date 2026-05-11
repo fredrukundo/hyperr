@@ -2,26 +2,35 @@
 
 import { useState, useEffect } from "react";
 import { Globe, Check } from "lucide-react";
-import { useCurrentUser, useUpdateProfile } from "@/hooks/useUser";
+import { useUpdateProfile } from "@/hooks/useUser";
 import { useToastStore } from "@/store/toast.store";
 import { SUPPORTED_LANGUAGES } from "@/lib/constants";
+import type { User } from "@/types/user.types";
+import { useLanguage } from "@/providers/LanguageProvider";
 
-export default function LanguageSettings() {
-  const { data: user, refetch } = useCurrentUser();
+interface LanguageSettingsProps {
+  user: User;
+}
+
+export default function LanguageSettings({ user }: LanguageSettingsProps) {
   const updateProfile = useUpdateProfile();
-  const { success, error } = useToastStore(); // ← Fixed
-  
-  const [selectedLang, setSelectedLang] = useState(user?.preferred_language || "en");
+  const { success, error } = useToastStore();
+
+  const { setLang } = useLanguage()
+
+  const [selectedLang, setSelectedLang] = useState(
+    user.preferred_language || "en"
+  );
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    if (user?.preferred_language) {
+    if (user.preferred_language) {
       setSelectedLang(user.preferred_language);
     }
   }, [user]);
 
   const handleLanguageChange = async (langCode: string) => {
-    if (langCode === user?.preferred_language) return;
+    if (langCode === user.preferred_language) return;
 
     try {
       setUpdating(true);
@@ -31,11 +40,17 @@ export default function LanguageSettings() {
         preferred_language: langCode,
       });
 
-      success("Language updated successfully"); // ← Fixed
-      await refetch();
+      success("Language updated successfully");
+
+      // 🔥 Important: update local UI immediately
+      localStorage.setItem("app_language", langCode);
+
+      console.log("Changing language to:", langCode);
+      setLang(langCode);
+
     } catch (err: any) {
-      error(err.message || "Failed to update language"); // ← Fixed
-      setSelectedLang(user?.preferred_language || "en");
+      error(err.message || "Failed to update language");
+      setSelectedLang(user.preferred_language || "en");
     } finally {
       setUpdating(false);
     }

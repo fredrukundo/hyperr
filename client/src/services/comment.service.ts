@@ -56,7 +56,9 @@ export async function getLatestComments(): Promise<Comment[]> {
 }
 
 // ── Get Movie Comments ─────────────────────────────────────────────────────
-export async function getMovieComments(movieId: string | number): Promise<Comment[]> {
+export async function getMovieComments(
+  movieId: string | number
+): Promise<Comment[]> {
   if (USE_MOCK) {
     return mockDelay([]);
   }
@@ -64,26 +66,20 @@ export async function getMovieComments(movieId: string | number): Promise<Commen
   try {
     console.log("📤 Fetching comments for movie:", movieId);
 
-    // Backend doesn't have a specific endpoint for movie comments
-    // So we fetch all comments and filter (or you can ask backend to add GET /movies/:id/comments)
-    const response = await api.get<CommentsListResponse>("/comments");
+    const response = await api.get(`/comments/movies/${movieId}`);
 
-    // Filter by movie_id (if backend returns it)
-    const allComments = response.data.success.data;
-    const movieComments = allComments.filter(
-      (comment: any) => String(comment.movie_id) === String(movieId)
-    );
+    console.log("✅ Movie comments response:", response.data);
 
-    console.log(`✅ Found ${movieComments.length} comments for movie ${movieId}`);
-
-    return movieComments;
+    return response.data.comments; // ✅ correct field
   } catch (error) {
     console.error("❌ Failed to fetch movie comments:", error);
 
     const axiosError = error as AxiosError<CommentError>;
 
     if (axiosError.response?.data?.error) {
-      throw new Error(getCommentErrorMessage(axiosError.response.data.error.code));
+      throw new Error(
+        getCommentErrorMessage(axiosError.response.data.error.code)
+      );
     }
 
     throw new Error("Failed to fetch comments");
@@ -113,15 +109,7 @@ export async function getComment(commentId: number): Promise<Comment> {
 
 // ── Create Comment ─────────────────────────────────────────────────────────
 export async function createComment(data: CreateCommentData): Promise<Comment> {
-  if (USE_MOCK) {
-    return mockDelay({
-      id: Date.now(),
-      content: data.comment,
-      created_at: new Date().toISOString(),
-      username: "You",
-      movie_id: Number(data.movie_id),
-    });
-  }
+
 
   try {
     console.log("📤 Creating comment:", data);
@@ -132,6 +120,7 @@ export async function createComment(data: CreateCommentData): Promise<Comment> {
       movie_id: typeof data.movie_id === 'string' 
         ? parseInt(data.movie_id, 10) 
         : data.movie_id,
+        rate: data.rate
     };
 
     console.log("📤 Payload:", payload);
@@ -159,14 +148,7 @@ export async function updateComment(
   commentId: number,
   data: UpdateCommentData
 ): Promise<Comment> {
-  if (USE_MOCK) {
-    return mockDelay({
-      id: commentId,
-      content: data.comment,
-      created_at: new Date().toISOString(),
-      username: "You",
-    });
-  }
+
 
   try {
     console.log("📤 Updating comment:", commentId, data);

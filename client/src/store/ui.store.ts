@@ -6,9 +6,6 @@ interface UIState {
   toggleTheme: () => void;
   setTheme: (theme: "light" | "dark") => void;
 
-  // Language
-  language: string;
-  setLanguage: (lang: string) => void;
 
   // Global loading
   isLoading: boolean;
@@ -32,10 +29,6 @@ export const useUIStore = create<UIState>((set) => ({
     }
     set({ theme });
   },
-
-  // Language — default English
-  language: "en",
-  setLanguage: (lang) => set({ language: lang }),
 
   // Global loading state
   isLoading: false,

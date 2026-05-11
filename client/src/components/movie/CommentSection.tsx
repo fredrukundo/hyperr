@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, Send } from "lucide-react";
+import { MessageSquare, Send, Star } from "lucide-react";
 import { useMovieComments, useCreateComment } from "@/hooks/useComments";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
@@ -17,6 +17,8 @@ export default function CommentSection({ movieId }: CommentSectionProps) {
   const { success, error } = useToastStore();
 
   const [commentText, setCommentText] = useState("");
+  const [rate, setRate] = useState(2);
+
 
   const { data: comments = [], isLoading, refetch } = useMovieComments(movieId);
   const createComment = useCreateComment();
@@ -38,6 +40,7 @@ export default function CommentSection({ movieId }: CommentSectionProps) {
       await createComment.mutateAsync({
         comment: commentText.trim(),
         movie_id: movieId,
+        rate,
       });
 
       success("Comment posted!");
@@ -71,6 +74,38 @@ export default function CommentSection({ movieId }: CommentSectionProps) {
           />
 
           <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRate(star)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    size={24}
+                    className={
+                      star <= rate
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-gray-400"
+                    }
+                  />
+                </button>
+              ))}
+
+              {/* Unstar = 0 */}
+              <button
+                type="button"
+                onClick={() => setRate(0)}
+                className="ml-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
+
+              <span className="ml-2 text-sm text-muted-foreground">
+                {rate}/5
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground">
               {commentText.length} / 500 characters
             </p>

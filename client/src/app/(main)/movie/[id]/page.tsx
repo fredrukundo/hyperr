@@ -130,18 +130,18 @@ export default function MoviePage({ params }: MoviePageProps) {
         />
 
         {/* Info about video source */}
-        <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground bg-secondary/50 p-3 rounded-xl">
+        {/* <div className="mt-4 flex items-start gap-2 text-xs text-muted-foreground bg-secondary/50 p-3 rounded-xl">
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
           <p>
             Video is being streamed from <strong>{engine.toUpperCase()}</strong> source.
             {movie.status === "downloading" && " Download in progress..."}
             {movie.status === "not_downloaded" && " Download will start when you play."}
           </p>
-        </div>
+        </div> */}
       </div>
 
       {/* ── Comments section ── */}
-        <CommentSection movieId={id} />
+        <CommentSection movieId={movie.id} />
 
     </div>
   );

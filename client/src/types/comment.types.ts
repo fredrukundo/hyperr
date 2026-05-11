@@ -1,15 +1,17 @@
 export interface Comment {
   id: number;
+  rate: number;
   content: string;
   created_at: string;
   username: string;
-  user_id?: number;
-  movie_id?: number;
+  user_id: number;
+  movie_id: number;
 }
 
 export interface CreateCommentData {
   comment: string;
   movie_id: number | string;
+  rate: number;
 }
 
 export interface UpdateCommentData {

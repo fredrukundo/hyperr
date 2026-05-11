@@ -335,7 +335,8 @@ export function getStreamUrl(
   engine: MovieEngine = "yts"
 ): string {
   const base = API_URL.replace(/\/$/, "");
-  return `${base}/movies/${movieId}/stream?engine=${engine}`;
+  ///movies/live/${movieId}/stream
+  return `${base}/moviesss/lives/${movieId}/stream`;
 }
 
 // ── Mark as watched ────────────────────────────────────────────────────────

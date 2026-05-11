@@ -22,6 +22,16 @@ export function useAuth(options: UseAuthOptions = {}) {
   const { user, isAuthenticated, logout, updateUser } = useAuthStore();
 
   useEffect(() => {
+  console.log('🔍 useAuth Debug:', {
+    requireAuth,
+    requireGuest,
+    isAuthenticated,
+    token: getToken(),
+    cookies: document.cookie
+  });
+}, [requireAuth, requireGuest, isAuthenticated]);
+
+  useEffect(() => {
     const token = getToken();
 
     // No token in localStorage → force logout and redirect

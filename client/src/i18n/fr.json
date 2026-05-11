@@ -22,17 +22,28 @@
     "alreadyHaveAccount": "Vous avez déjà un compte?",
     "dontHaveAccount": "Vous n'avez pas de compte?"
   },
-  "library": {
-    "search": "Rechercher des films...",
-    "filters": "Filtres",
-    "sortBy": "Trier par",
-    "genre": "Genre",
-    "year": "Année",
-    "rating": "Note",
-    "noResults": "Aucun film trouvé",
-    "watched": "Regardé",
-    "unwatched": "Non regardé"
-  },
+"library": {
+  "search": "Rechercher des films...",
+  "filters": "Filtres",
+  "sortBy": "Trier par",
+  "genre": "Genre",
+  "year": "Année",
+  "rating": "Note",
+  "noResults": "Aucun film trouvé",
+  "watched": "Regardé",
+  "unwatched": "Non regardé",
+
+  "popularMovies": "Films populaires",
+  "resultsFor": "Résultats pour",
+  "browseDescription": "Parcourez les films gratuits et légaux les plus populaires",
+  "searchDescription": "Affichage des résultats de recherche depuis toutes les sources",
+  "showing": "Affichage de",
+  "movie": "film",
+  "movies": "films",
+  "for": "pour",
+  "noResultsFor": "Nous n'avons trouvé aucun film correspondant à",
+  "noMoviesAvailable": "Aucun film disponible pour le moment. Réessayez plus tard."
+},
   "movie": {
     "director": "Réalisateur",
     "cast": "Casting",
@@ -58,5 +69,30 @@
     "save": "Sauvegarder",
     "delete": "Supprimer",
     "edit": "Modifier"
-  }
+  },
+  "comments": {
+  "title": "Commentaires",
+  "placeholder": "Partagez votre avis sur ce film...",
+  "characters": "caractères",
+  "post": "Publier",
+  "posting": "Publication...",
+  "empty": "Aucun commentaire pour le moment. Soyez le premier à donner votre avis !",
+  "loginToComment": "Veuillez vous connecter pour laisser un commentaire",
+  "commentEmpty": "Le commentaire ne peut pas être vide",
+  "commentTooLong": "Le commentaire est trop long (max 500 caractères)",
+  "posted": "Commentaire publié !",
+  "failed": "Échec de la publication du commentaire"
+},
+"settings": {
+  "title": "Paramètres",
+  "subtitle": "Gérez les préférences de votre compte",
+  "dangerZone": "Zone dangereuse",
+  "dangerDescription": "Une fois votre compte supprimé, il ne pourra pas être récupéré.",
+  "deleteAccount": "Supprimer le compte",
+  "deleteConfirm": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.",
+  "deleteSuccess": "Compte supprimé avec succès",
+  "deleteError": "Échec de la suppression du compte",
+  "loading": "Chargement des paramètres...",
+  "loadError": "Impossible de charger les paramètres."
+}
 }
