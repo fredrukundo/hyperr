@@ -37,9 +37,7 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAccount = async () => {
-    const confirmed = await confirm(
-      "Are you sure you want to delete your account? This action cannot be undone."
-    );
+    const confirmed = await confirm(t.settings.deleteConfirm);
 
     if (!confirmed) return;
 
