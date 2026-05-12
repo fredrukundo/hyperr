@@ -11,7 +11,7 @@ const router = express.Router();
 const INFO = process.env.INFO_MODE || false
 const DEBUG = process.env.DEBUG_MODE || false
 
-router.get('/', async (req, res) => {
+router.get('/', isAuthorize, async (req, res) => {
     try {
         let { page, limit, search, sortBy, year, minRating } = req.query;
 
@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
             target: search || null,
             page,
             limit,
-            //sortBy: sortBy || 'downloads',
+            sortBy: sortBy || 'downloads',
             year: !isNaN(year) ? year : null,
             minRating: !isNaN(minRating) ? minRating : null
         });
@@ -88,11 +88,11 @@ router.get('/search', isAuthorize, async (req, res) => {
 });
 
 
-router.get('/live/:id/stream', async (req, res) => {
+router.get('/live/:id/stream', isAuthorize, async (req, res) => {
     try {
         const { id } = req.params;
         const existingMovie = await pool.query(
-            `SELECT id, identifier, torrent_link FROM movies WHERE identifier = $1 LIMIT 1`,
+            `SELECT * FROM movies WHERE identifier = $1 LIMIT 1`,
             [id]
         );
         if (!existingMovie || existingMovie.rows.length === 0) {

@@ -9,6 +9,7 @@ const os = require('os');
 const { PassThrough } = require('stream');
 const { pipeline } = require('stream/promises');
 const { resolve } = require('dns');
+const pool = require('../../config/pool');
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
 
@@ -41,7 +42,7 @@ async function initEngine(req, res, movie) {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     let options = {
-        path: `./uploads/movies/`,
+        path: `./uploads/movies/${movie.id}`,
         trackers: trackers,
         dht: true,
         tracker: true
@@ -54,13 +55,16 @@ async function initEngine(req, res, movie) {
         console.log(`[torrent] engine ready — ${engine.files.length} files`);
     });
     engine.on('idle', () => {
+        console.log("Engine idle");
         const streamFile = findStreamFile(engine);
-        const moviePath = `./uploads/movies/${movie.identifier}/${streamFile.file.name}`;
+        const moviePath = `./uploads/movies/${movie.id}/${streamFile.file.name}`;
+        console.log("movie not founded: ", movie.id);
         if (streamFile.found &&
             fs.existsSync(moviePath) &&
             streamFile.file.length === fs.statSync(moviePath).size) {
             engine.movieDownloaded = true;
             engine.moviePath = moviePath;
+            engine.pathDB =  `./uploads/movies/${movie.id}`
         }
     });
     engine.on('error', (err) => {
@@ -256,12 +260,70 @@ function sendStream(statusCode, res, inputStream, mimeType, fileSize) {
     inputStream.pipe(res);
 }
 
+
+/* =========================
+   USER HISTORY
+========================= */
+const upsertUserHistory = async (userId, movie, progress = 1.0) => {
+    try {
+        await pool.query(`
+            UPDATE movies SET last_watched = CURRENT_TIMESTAMP WHERE id = $1
+        `, [movie.id]);
+
+        await pool.query(`
+            INSERT INTO user_movie_history (user_id, movie_id, engine, identifier, progress)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, movie_id)
+            DO UPDATE SET 
+                progress = EXCLUDED.progress,
+                last_watched = CURRENT_TIMESTAMP
+        `, [userId, movie.id, movie.api, movie.identifier, progress]);
+
+    } catch (err) {
+        console.log("History DB error:", err.message);
+    }
+};
+
+const saveDownloadedMovie = async (filePath, id) => {
+    if (!fs.existsSync(filePath)) {
+        return;
+    }
+
+    const movieResult = await pool.query(
+        'SELECT status, downloaded_path FROM movies WHERE id = $1',
+        [id]
+    );
+
+    if (movieResult.rowCount === 0) {
+        return;
+    }
+
+    const movie = movieResult.rows[0];
+
+    const shouldUpdate =
+        movie.status !== 'downloaded' ||
+        !movie.downloaded_path;
+
+    if (shouldUpdate) {
+        await pool.query(
+            `UPDATE movies
+             SET downloaded_path = $1,
+                 status = $2
+             WHERE id = $3`,
+            [filePath, 'downloaded', id]
+        );
+    }
+};
+
 async function pipeStream(req, res, movie) {
     const engine = await initEngine(req, res, movie);
     if (!engine.isReady) {
+        console.log('=> 1')
         await awaitEngineReady(engine, 20000);
+
     }
     if (engine.movieDownloaded) {
+        console.log('=> 2')
         const moviePath = engine.moviePath;
         const fileSize = fs.statSync(moviePath).size;
         const range = getRange(req, fileSize);
@@ -269,6 +331,11 @@ async function pipeStream(req, res, movie) {
         engine.disconnect(() => { });
         engine.destroy(() => { });
         delete engines[movie.torrent_link];
+        /* */
+        await saveDownloadedMovie(engine.pathDB, movie.id);
+        await upsertUserHistory(req.user.id, movie); // req.user.id
+        console.log(`Movie : ${movie.id} => ${moviePath}`);
+        /* */
         if (range) {
             res.writeHead(206, {
                 "Accept-Ranges": "bytes",
@@ -299,12 +366,16 @@ async function pipeStream(req, res, movie) {
     const fileSize = file.length;
     const rangeParams = getRange(req, fileSize);
     targetFile.select();
-    let moviePath = `./uploads/movies/${movie.identifier}/${targetFile.name}`;
+    let moviePath = `./uploads/movies/${movie.id}/${targetFile.name}`;
+    console.log("Movie path: ", moviePath);
+
     //await waitForFileToGrow(moviePath);
-    movie.downloaded_path = moviePath;
+    // movie.downloaded_path = moviePath;
     if (needConvert) {
+        console.log('=> 3')
         convertAndStream(res, targetFile, moviePath);
     } else {
+        console.log('=> 4')
         // If the client sent a Range header but it's invalid/unsupported, return 416.
         if (req.headers.range && !rangeParams) {
             res.writeHead(416, {

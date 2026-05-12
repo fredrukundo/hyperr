@@ -93,7 +93,7 @@ if (process.env.FORTYTWO_CLIENT_ID && process.env.FORTYTWO_CLIENT_SECRET){
 
             
             if (!user) {
-                console.log('=> : ', profile)
+                
                 const insert = await pool.query(
                     `INSERT INTO users (username, email, first_name, last_name, profile_picture, auth_provider, provider_id)
                         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -128,8 +128,6 @@ if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
     }, async (accessToken, refreshToken, profile, cb) => {
         try {
             
-            
-            console.log("profile : ", profile)
             let result = await pool.query(
                 'SELECT * FROM users WHERE auth_provider = $1 AND provider_id = $2',
                 ['github', profile.id]

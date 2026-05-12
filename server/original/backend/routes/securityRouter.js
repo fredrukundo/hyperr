@@ -10,6 +10,7 @@ const DEBUG = process.env.DEBUG_MODE || false;
 
 // for a logged-in user, change password
 const isAuthorize = require("../middleware/authorize");
+const { sendEmail } = require('../utils/email');
 
 route.post("/change-password", isAuthorize, async (req, res) => {
   try {
@@ -69,6 +70,7 @@ route.post("/change-password", isAuthorize, async (req, res) => {
     });
   }
 });
+
 route.post('/reset-password/request', async (req, res) => {
     try {
         let { email_username } = req.body;
@@ -82,7 +84,7 @@ route.post('/reset-password/request', async (req, res) => {
         }
 
         const userResult = await pool.query(
-            'SELECT id FROM users WHERE email = $1 OR username = $1',
+            'SELECT id, email, username FROM users WHERE email = $1 OR username = $1',
             [email_username]
         );
 
@@ -113,11 +115,28 @@ route.post('/reset-password/request', async (req, res) => {
         }
 
         const resetToken = require('crypto').randomBytes(32).toString('hex');
-
+        
         await pool.query(
             `INSERT INTO password_reset_requests (user_id, reset_token)
-             VALUES ($1, $2)`,
+            VALUES ($1, $2)`,
             [user.id, resetToken]
+        );
+
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+        await sendEmail(
+            user.email,
+            "Password Reset Request",
+            `
+                <h2>Password Reset</h2>
+                <p>Hello ${user.username},</p>
+                <p>You requested a password reset.</p>
+                <p>Click below to reset your password:</p>
+                <a href="${resetUrl}" target="_blank">
+                    Reset Password
+                </a>
+                <p>This link will expire soon.</p>
+            `
         );
 
         if (INFO) {

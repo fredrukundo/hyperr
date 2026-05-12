@@ -5,30 +5,6 @@ require('dotenv').config()
 
 const DEBUG = process.env.DEBUG_MODE === 'true'
 
-const getLang = (filename) => {
-    try {
-        const name = filename.toLowerCase();
-
-        if (name.includes('.en.') || name.includes('en.')) return 'en';
-        if (name.includes('.fr.') || name.includes('fr.')) return 'fr';
-        if (name.includes('.es.') || name.includes('es.')) return 'es';
-
-        if (name.includes('.asr')) return 'auto';
-
-        const parts = name.split('.');
-        const possibleLang = parts[parts.length - 2];
-
-        if (possibleLang.length === 2) return possibleLang;
-
-        return 'unknown';
-    } catch (error) {
-        if (DEBUG) {
-            console.log('[ERROR] -> getLang -> ', error.message);
-        }
-        return 'unknown';
-    }
-};
-
 const ArchiveEngine = async ({target = null, page = 1, limit = 20, sortBy = 'downloads', year = null, minRating = 2}) => {
     try {
         let query;
@@ -54,7 +30,7 @@ const ArchiveEngine = async ({target = null, page = 1, limit = 20, sortBy = 'dow
                     'avg_rating',
                     'downloads'
                 ],
-                sort: [`${sortBy} desc`],
+                sort: [`${'downloads'} desc`],
                 rows: limit,
                 page: page,
                 output: 'json'
@@ -142,19 +118,6 @@ const archiveMovieById = async (id) => {
             .slice(0, 5)
             .map(f => `${baseUrl}/${f.name}`);
 
-        // 🎧 subtitles
-        const subtitles = files
-            .filter(f =>
-                f.format === "SubRip" ||
-                f.name.endsWith('.srt') ||
-                f.name.endsWith('.vtt')
-            ).map(f => ({
-                label: getLang?.(f.name) || 'unknown',
-                url: `${baseUrl}/${f.name}`,
-                isAuto: f.name.includes('.asr')
-            }))
-            
-
         return {
             id,
             title: metadata.title || null,
@@ -175,7 +138,7 @@ const archiveMovieById = async (id) => {
             torrent: `${baseUrl}/${id}_archive.torrent`,
 
             thumbnails,
-            subtitles,
+            subtitles : null,
         };
 
     } catch (error) {

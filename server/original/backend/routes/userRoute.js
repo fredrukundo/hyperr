@@ -14,45 +14,32 @@ const {
 const bcrypt = require('bcrypt');
 const pool = require('../config/pool');
 const upload = require('../utils/uploads/profileImage');
+const { registerSchema, updateUserSchema } = require('../utils/validators/user.validator');
+
 
 router.post('/register', async (req, res) => {
     try {
-        let { username, email, first_name, last_name, password, repassword } = req.body;
+        const parsed = registerSchema.safeParse(req.body);
 
-        username = username?.trim().toLowerCase();
-        email = email?.trim().toLowerCase();
+        if (!parsed.success) {
+            const errors = parsed.error.flatten();
 
-        const missingFields = [];
-
-        if (!username) missingFields.push('username');
-        if (!email) missingFields.push('email');
-        if (!first_name) missingFields.push('first_name');
-        if (!last_name) missingFields.push('last_name');
-        if (!password) missingFields.push('password');
-        if (!repassword) missingFields.push('repassword');
-
-        if (missingFields.length > 0) {
             return res.status(400).json({
                 error: {
-                    code: 'MISSING_FIELDS',
-                    fields: missingFields
+                    code: 'VALIDATION_ERROR',
+                    fields: errors.fieldErrors
                 }
             });
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({
-                error: { code: 'INVALID_EMAIL' }
-            });
-        }
-
-        const emailExist = await lookupUserByEmail(email);
-        if (emailExist) {
-            return res.status(400).json({
-                error: { code: 'EMAIL_ALREADY_EXISTS' }
-            });
-        }
+        let {
+            username,
+            email,
+            first_name,
+            last_name,
+            password,
+            repassword
+        } = parsed.data;
 
         if (password !== repassword) {
             return res.status(400).json({
@@ -60,21 +47,16 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        if (password.length < 6) {
-            return res.status(400).json({
-                error: { code: 'WEAK_PASSWORD' }
-            });
-        }
+        const emailExist = await lookupUserByEmail(email);
 
-        const usernameRegex = /^(?!.*\.\.)(?!\.)([a-z.]{3,})(?<!\.)$/;
-
-        if (!usernameRegex.test(username)) {
+        if (emailExist) {
             return res.status(400).json({
-                error: { code: 'INVALID_USERNAME' }
+                error: { code: 'EMAIL_ALREADY_EXISTS' }
             });
         }
 
         const usernameExist = await lookupUserByUsername(username);
+
         if (usernameExist) {
             return res.status(400).json({
                 error: { code: 'USERNAME_ALREADY_EXISTS' }
@@ -82,7 +64,7 @@ router.post('/register', async (req, res) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         const result = await registerUser({
             email,
             username,
@@ -93,17 +75,17 @@ router.post('/register', async (req, res) => {
 
         if (result) {
             return res.status(201).json({
-                success : { code: 'REGISTER_SUCCESSED' }
+                success: { code: 'REGISTER_SUCCESS' }
             });
         }
-        
+
         return res.status(400).json({
             error: { code: 'REGISTER_FAILED' }
         });
 
     } catch (error) {
-        if (DEBUG){
-            console.log('[ERROR] -> [POST]/users/register -> ', error)
+        if (DEBUG) {
+            console.log('[ERROR] -> [POST]/users/register -> ', error);
         }
 
         return res.status(400).json({
@@ -211,143 +193,151 @@ router.get('/:id', isAuthorize, async (req, res) => {
     }
 });
 
-router.patch('/:id', isAuthorize, upload.single('profile_picture'), async (req, res) => {
-    try {
-        
-        const targetId = parseInt(req.params.id);
-        if (req.user.id !== targetId) {
-            return res.status(403).json({error: {code: 'FORBIDDEN_OPERATION'}});
-        }
-        
-        let { email, username, first_name, last_name, preferred_language} = req.body || {email : null, username : null, first_name : null, last_name : null, preferred_language: null};
-        const profile_picture = req.file ? `${req.protocol}://${req.get('host')}/uploads/images/${req.file.filename}` : undefined;
+router.patch(
+    '/:id',
+    isAuthorize,
+    upload.single('profile_picture'),
+    async (req, res) => {
+        try {
+            const targetId = parseInt(req.params.id);
 
-        email = email?.trim();
-        username = username?.trim();
-        first_name = first_name?.trim();
-        last_name = last_name?.trim();
-        preferred_language = preferred_language?.trim();
+            if (req.user.id !== targetId) {
+                return res.status(403).json({
+                    error: { code: 'FORBIDDEN_OPERATION' }
+                });
+            }
 
-        if (!email && !username && !first_name && !last_name && !profile_picture && !preferred_language) {
+            const parsed = updateUserSchema.safeParse(req.body);
+
+            if (!parsed.success) {
+                return res.status(400).json({
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        fields: parsed.error.flatten().fieldErrors
+                    }
+                });
+            }
+
+            let {
+                email,
+                username,
+                first_name,
+                last_name,
+                preferred_language
+            } = parsed.data;
+
+            const profile_picture = req.file
+                ? `${req.protocol}://${req.get('host')}/uploads/images/${req.file.filename}`
+                : null;
+
+            if (
+                !email &&
+                !username &&
+                !first_name &&
+                !last_name &&
+                !preferred_language &&
+                !profile_picture
+            ) {
+                return res.status(400).json({
+                    error: { code: 'NO_FIELDS_TO_UPDATE' }
+                });
+            }
+
+            const fields = [];
+            const values = [];
+            let index = 1;
+
+            // ---------------- EMAIL ----------------
+            if (email) {
+                const emailExist = await lookupUserByEmail(email);
+
+                if (emailExist && emailExist.id !== targetId) {
+                    return res.status(400).json({
+                        error: { code: 'EMAIL_ALREADY_EXISTS' }
+                    });
+                }
+
+                fields.push(`email = $${index++}`);
+                values.push(email);
+            }
+
+            // ---------------- USERNAME ----------------
+            if (username) {
+                const usernameExist = await lookupUserByUsername(username);
+
+                if (usernameExist && usernameExist.id !== targetId) {
+                    return res.status(400).json({
+                        error: { code: 'USERNAME_ALREADY_EXISTS' }
+                    });
+                }
+
+                fields.push(`username = $${index++}`);
+                values.push(username);
+            }
+
+            // ---------------- FIRST NAME ----------------
+            if (first_name) {
+                fields.push(`first_name = $${index++}`);
+                values.push(first_name);
+            }
+
+            // ---------------- LAST NAME ----------------
+            if (last_name) {
+                fields.push(`last_name = $${index++}`);
+                values.push(last_name);
+            }
+
+            // ---------------- PROFILE PICTURE ----------------
+            if (profile_picture) {
+                fields.push(`profile_picture = $${index++}`);
+                values.push(profile_picture);
+            }
+
+            // ---------------- LANGUAGE ----------------
+            if (preferred_language) {
+                if (!languages[preferred_language]) {
+                    return res.status(400).json({
+                        error: { code: 'UNSUPPORTED_LANGUAGE' }
+                    });
+                }
+
+                fields.push(`preferred_language = $${index++}`);
+                values.push(preferred_language);
+            }
+
+            fields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+            values.push(targetId);
+
+            const result = await pool.query(
+                `UPDATE users
+                 SET ${fields.join(', ')}
+                 WHERE id = $${index}
+                 RETURNING *`,
+                values
+            );
+
+            if (result.rowCount === 0) {
+                return res.status(404).json({
+                    error: { code: 'USER_NOT_FOUND' }
+                });
+            }
+
+            return res.status(200).json({
+                success: { code: 'ACCOUNT_UPDATED' }
+            });
+
+        } catch (error) {
+            if (DEBUG) {
+                console.log('[ERROR] -> [PATCH] /users/:id :', error);
+            }
+
             return res.status(400).json({
-                error: { code: 'NO_FIELDS_TO_UPDATE' }
+                error: { code: 'GENERAL_ERROR' }
             });
         }
-
-        const fields = [];
-        const values = [];
-        let index = 1;
-
-        // ---------------- EMAIL ----------------
-        if (email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            if (email.length > 150) {
-                return res.status(400).json({ error: { code: 'EMAIL_TOO_LONG' } });
-            }
-
-            if (!emailRegex.test(email)) {
-                return res.status(400).json({ error: { code: 'INVALID_EMAIL' } });
-            }
-
-            const emailExist = await lookupUserByEmail(email);
-            if (emailExist) {
-                return res.status(400).json({ error: { code: 'EMAIL_ALREADY_EXISTS' } });
-            }
-
-            fields.push(`email = $${index++}`);
-            values.push(email);
-        }
-
-        // ---------------- USERNAME ----------------
-        if (username) {
-            const usernameRegex = /^(?!.*\.\.)(?!\.)([a-z.]{3,30})(?<!\.)$/;
-
-            if (!usernameRegex.test(username)) {
-                return res.status(400).json({ error: { code: 'INVALID_USERNAME' } });
-            }
-
-            const usernameExist = await lookupUserByUsername(username);
-            if (usernameExist && usernameExist.id !== targetId) {
-                return res.status(400).json({ error: { code: 'USERNAME_ALREADY_EXISTS' } });
-            }
-
-            fields.push(`username = $${index++}`);
-            values.push(username);
-        }
-
-        // ---------------- FIRST NAME ----------------
-        if (first_name) {
-            if (first_name.length < 2 || first_name.length > 100) {
-                return res.status(400).json({
-                    error: { code: 'INVALID_FIRST_NAME_LENGTH' }
-                });
-            }
-
-            fields.push(`first_name = $${index++}`);
-            values.push(first_name);
-        }
-
-        // ---------------- LAST NAME ----------------
-        if (last_name) {
-            if (last_name.length < 2 || last_name.length > 100) {
-                return res.status(400).json({
-                    error: { code: 'INVALID_LAST_NAME_LENGTH' }
-                });
-            }
-
-            fields.push(`last_name = $${index++}`);
-            values.push(last_name);
-        }
-
-        // ---------------- PROFILE PICTURE ----------------
-        if (profile_picture) {
-            fields.push(`profile_picture = $${index++}`);
-            values.push(profile_picture);
-        }
-
-        // ---------------- LANGUAGE ----------------
-        if (preferred_language) {
-            if (!languages[preferred_language]) {
-                return res.status(400).json({
-                    error: { code: 'UNSUPPORTED_LANGUAGE' }
-                });
-            }
-
-            fields.push(`preferred_language = $${index++}`);
-            values.push(preferred_language);
-        }
-
-        fields.push(`updated_at = CURRENT_TIMESTAMP`);
-
-        values.push(targetId);
-        const userIdIndex = index++;
-
-        const result = await pool.query(
-            `UPDATE users 
-                SET ${fields.join(', ')}
-                WHERE id = $${userIdIndex}
-                RETURNING *`,
-            values
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({
-                error: { code: 'USER_NOT_FOUND' }
-            });
-        }
-
-        return res.status(200).json({success : { code: 'ACCOUNT_UPDATED' }});
-
-    } catch (error) {
-        if (DEBUG) {
-            console.log('[ERROR] -> [PATCH] /users/:id :', error);
-        }
-        return res.status(400).json({
-            error: { code: 'GENERAL_ERROR' }
-        });
     }
-});
+);
 
 
 module.exports = router;

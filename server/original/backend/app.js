@@ -1,5 +1,6 @@
 require('dotenv').config();
 const path = require('path');
+const hpp = require('hpp')
 const express = require('express');
 const cors = require('cors');  // ← Add this
 const passport = require('./config/passport');
@@ -9,6 +10,8 @@ const app = express();
 require('./utils/engines/cleanup');
 
 app.use(passport.initialize());
+
+console.log('=> ', passport)
 
 const authAPIs = require('./routes/authRoute');
 const oauthAPIs = require('./routes/oauth');
@@ -39,11 +42,13 @@ const incomingRequests = (req, res, next) => {
     next();
 };
 
+app.use(hpp());
 app.use(incomingRequests);
 
 // ── Body Parser ────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));  // ← Add this for form data
+
 
 // ── Static Files ───────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -59,10 +64,6 @@ app.use('/comments', commentsAPIs);
 // ── Health Check ───────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
     return res.json({ message: 200 });
-});
-
-app.get('/hello', (req, res) => {
-    return res.json({ message: 'Hello World' });
 });
 
 // ── Start Server ───────────────────────────────────────────────────────────

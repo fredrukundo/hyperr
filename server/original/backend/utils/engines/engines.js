@@ -10,9 +10,7 @@ const AllEngines = async (options = {}) => {
         archive : archive,
         yts: yts
     };
-    return {
-        ...yts
-    };
+   
 
 };
 

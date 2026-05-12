@@ -6,7 +6,7 @@ const router = express.Router();
 
 const DEBUG = process.env.DEBUG_MODE || false
 
-router.get('/movies/:id', async (req, res) => {
+router.get('/movies/:id', isAuthorize, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -65,7 +65,7 @@ router.get('/movies/:id', async (req, res) => {
 returns a list of latest comments which includes comment’s author username, date,
 content, and id.
 */
-router.get('/', async (req, res) => {
+router.get('/', isAuthorize, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
@@ -97,7 +97,7 @@ router.get('/', async (req, res) => {
 [GET] /comments/:id
 returns comment, author’s username, comment id, date posted
 */
-router.get('/:id', async (req, res) => {
+router.get('/:id', isAuthorize, async (req, res) => {
     
     try {
         const { id } = req.params;

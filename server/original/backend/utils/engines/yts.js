@@ -14,23 +14,30 @@ String (year, rating, date_added)
 const YTSEngine = async ({
     target = null,
     page = 1,
-    limit = 20,
+    limit = 50,
     sortBy = 'date_added',
     orderBy = 'desc',
     minRating = 0,
 }) => {
+
     try {
-        const response = await axios.get('https://movies-api.accel.li/api/v2/list_movies.json', {
-            params: {
-                limit,
-                page,
-                query_term: target || undefined,
+        const params = {
+                page: page,
+                limit: limit,
                 with_rt_ratings: true,
                 minimum_rating: minRating,
                 sort_by: sortBy,
                 order_by: orderBy,
-            }
-        });
+            };
+
+        if (target) {
+            params.query_term = target;
+        }
+
+        const response = await axios.get(
+            `https://movies-api.accel.li/api/v2/list_movies.json`,
+            { params }
+        );
 
         const data = response?.data?.data;
         const movies = data?.movies || [];
