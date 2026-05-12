@@ -187,7 +187,7 @@ export async function getMovies(params: MoviesParams = {}): Promise<MovieWithEng
     const filters = params.filters ?? {};
 
     const page = params.page ?? 1;
-    const limit = params.limit ?? 20;
+    const limit = params.limit ?? 50;
     const search = params.search?.trim();
 
     const sortBy = params.sortBy ?? filters.sortBy ?? filters.sort;
@@ -336,7 +336,9 @@ export function getStreamUrl(
 ): string {
   const base = API_URL.replace(/\/$/, "");
   ///movies/live/${movieId}/stream
-  return `${base}/moviesss/lives/${movieId}/stream`;
+  const token = localStorage.getItem("hypertube_token");
+
+  return `${base}/movies/live/${movieId}/stream?token=${token}`;
 }
 
 // ── Mark as watched ────────────────────────────────────────────────────────

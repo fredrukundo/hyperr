@@ -163,33 +163,34 @@ export default function MoviePlayer({
     >
       {/* ── Video element ── */}
       <video
-  ref={videoRef}
-  src={streamUrl}
-  className="w-full h-full object-contain"
-  onTimeUpdate={handleTimeUpdate}
-  onPlaying={() => { setIsPlaying(true); setIsBuffering(false); }}
-  onPause={() => setIsPlaying(false)}
-  onWaiting={() => setIsBuffering(true)}
-  onCanPlay={() => { setIsBuffering(false); setVideoError(null); }}
-  onError={(e) => {
-    setIsBuffering(false);
-    
-    // Check if it's a 404 error
-    const target = e.target as HTMLVideoElement;
-    const error = target.error;
-    
-    if (error?.code === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED
-      setVideoError(
-        "Video streaming is not available yet. The backend stream endpoint needs to be implemented."
-      );
-    } else {
-      setVideoError("This video could not be loaded. The source may be unavailable.");
-    }
-  }}
-  onClick={handlePlayPause}
-  preload="metadata"
-  crossOrigin="anonymous"
->
+        autoPlay={true}
+        ref={videoRef}
+        src={streamUrl}
+        className="w-full h-full object-contain"
+        onTimeUpdate={handleTimeUpdate}
+        onPlaying={() => { setIsPlaying(true); setIsBuffering(false); }}
+        onPause={() => setIsPlaying(false)}
+        onWaiting={() => setIsBuffering(true)}
+        onCanPlay={() => { setIsBuffering(false); setVideoError(null); }}
+        onError={(e) => {
+          setIsBuffering(false);
+          
+          // Check if it's a 404 error
+          const target = e.target as HTMLVideoElement;
+          const error = target.error;
+          
+          if (error?.code === 4) { // MEDIA_ERR_SRC_NOT_SUPPORTED
+            setVideoError(
+              "Video streaming is not available yet. The backend stream endpoint needs to be implemented."
+            );
+          } else {
+            setVideoError("This video could not be loaded. The source may be unavailable.");
+          }
+        }}
+        onClick={handlePlayPause}
+        preload="metadata"
+        crossOrigin="anonymous"
+      >
         {subtitles
           .filter((sub) => sub.url && sub.url.trim() !== "")
           .map((sub) => (

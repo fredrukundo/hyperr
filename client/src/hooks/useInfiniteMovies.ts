@@ -22,19 +22,19 @@ export function useInfiniteMovies(
       const movies = await getMovies({
         ...params,
         page: pageParam,
-        limit: params.limit || 20,
+        limit: params.limit || 50,
       });
 
       // Return in the format your library page expects
       return {
         movies,
         page: pageParam,
-        hasMore: movies.length >= (params.limit || 20),
+        hasMore: movies.length >= (params.limit || 50),
       };
     },
     getNextPageParam: (lastPage, allPages) => {
       // Continue if we got a full page
-      if (lastPage.movies.length >= (params.limit || 20)) {
+      if (lastPage.movies.length >= (params.limit || 50)) {
         return allPages.length + 1;
       }
       return undefined;

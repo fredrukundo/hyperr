@@ -57,20 +57,34 @@ function mockDelay<T>(data: T, ms = 600): Promise<T> {
 }
 
 // ── Error message mapper ───────────────────────────────────────────────────
-function getErrorMessage(code: string, fields?: string[]): string {
+function getErrorMessage(
+  code: string,
+  fields?: Record<string, string[]>
+): string {
+  const validationFields = fields
+    ? Object.values(fields)
+        .flat()
+        .filter(Boolean)
+        .join(", ")
+    : "";
+
   const errorMessages: Record<string, string> = {
-    MISSING_FIELDS: `Missing required fields: ${fields?.join(", ")}`,
+    MISSING_FIELDS: `Missing required fields: ${validationFields}`,
+    VALIDATION_ERROR: validationFields || "Validation failed",
     INVALID_CREDENTIALS: "Incorrect email/username or password",
     INVALID_EMAIL: "Invalid email format",
     EMAIL_ALREADY_EXISTS: "This email is already registered",
     USERNAME_ALREADY_EXISTS: "This username is already taken",
-    INVALID_USERNAME: "Username must be lowercase, 3+ chars, can contain dots (but not at start/end or consecutive)",
+    INVALID_USERNAME:
+      "Username must be lowercase, 3+ chars, can contain dots (but not at start/end or consecutive)",
     PASSWORD_NOT_MATCH: "Passwords do not match",
     WEAK_PASSWORD: "Password must be at least 6 characters",
     GENERAL_ERROR: "An error occurred. Please try again",
-    RESET_LIMIT_REACHED: "Too many reset requests. Please try again later.",
+    RESET_LIMIT_REACHED:
+      "Too many reset requests. Please try again later.",
     MISSING_EMAIL: "Email or username is required",
-    EXPIRED_SESSION: "Reset link has expired. Please request a new one.",
+    EXPIRED_SESSION:
+      "Reset link has expired. Please request a new one.",
     INVALID_USER: "User not found",
   };
 
@@ -117,10 +131,6 @@ export async function login(usernameOrEmail: string, password: string): Promise<
 
 // ── Register ───────────────────────────────────────────────────────────────
 export async function register(credentials: RegisterCredentials): Promise<void> {
-  if (USE_MOCK) {
-    await mockDelay({ success: { code: "REGISTER_SUCCESSED" } });
-    return;
-  }
 
   try {
     const payload = {
@@ -263,6 +273,9 @@ export const resetPassword = (token: string, password: string) =>
 // ── Logout ─────────────────────────────────────────────────────────────────
 export function logout(): void {
   removeToken();
+
+  delete api.defaults.headers.common["Authorization"];
+  
   if (typeof window !== "undefined") {
     window.location.href = "/login";
   }

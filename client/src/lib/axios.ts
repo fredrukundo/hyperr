@@ -6,25 +6,24 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 15000, // 15 seconds
+  timeout: 25000,
 });
 
 // ── Request interceptor: attach JWT token ──────────────────────────────────
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    // Get token from localStorage (we'll set it after login)
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("hypertube_token");
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("hypertube_token");
+
+    if (token) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      delete config.headers?.Authorization;
     }
-    return config;
-  },
-  (error: AxiosError) => {
-    return Promise.reject(error);
   }
-);
+
+  return config;
+});
 
 // ── Response interceptor: handle global errors ─────────────────────────────
 api.interceptors.response.use(

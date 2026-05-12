@@ -73,7 +73,7 @@ interface OAuthButtonsProps {
 export default function OAuthButtons({ mode }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
-  const handleOAuth = (provider: "42" | "github") => {
+  const handleOAuth = (provider: "42" | "github" | "discord") => {
     setLoadingProvider(provider);
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:7002";
     
@@ -117,6 +117,26 @@ export default function OAuthButtons({ mode }: OAuthButtonsProps) {
           />
         )}
         {mode === "login" ? "Login" : "Sign up"} with GitHub
+      </button>
+
+      {/* GitHub OAuth */}
+      <button
+        onClick={() => handleOAuth("discord")}
+        disabled={loadingProvider !== null}
+        className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 border-border bg-card text-card-foreground font-semibold text-sm hover:bg-[#CBDDE9] hover:border-[#2872A1] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {loadingProvider === "github" ? (
+          <span className="w-5 h-5 border-2 border-[#2872A1] border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Image
+            src= {gihub}
+            width={40}
+            height={40}
+            className="text-foreground"
+            alt="Gihub icon"
+          />
+        )}
+        {mode === "login" ? "Login" : "Sign up"} with Discord
       </button>
     </div>
   );

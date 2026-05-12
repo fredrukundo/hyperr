@@ -23,15 +23,16 @@ export interface AuthResponse {
 
 export interface RegisterResponse {
   success: {
-    code: "REGISTER_SUCCESSED";
+    code: "REGISTER_SUCCESS";
   };
 }
 
 // ── Error Types ────────────────────────────────────────────────────────────
 export interface AuthError {
   error: {
-    code: 
-      | "MISSING_FIELDS" 
+    code:
+      | "VALIDATION_ERROR"
+      | "MISSING_FIELDS"
       | "INVALID_CREDENTIALS"
       | "INVALID_EMAIL"
       | "EMAIL_ALREADY_EXISTS"
@@ -40,8 +41,14 @@ export interface AuthError {
       | "PASSWORD_NOT_MATCH"
       | "WEAK_PASSWORD"
       | "GENERAL_ERROR"
+      | "REGISTER_FAILED"
+      | "RESET_LIMIT_REACHED"
+      | "MISSING_EMAIL"
+      | "EXPIRED_SESSION"
+      | "INVALID_USER"
       | string;
-    fields?: string[];
+
+    fields?: Record<string, string[]>;
   };
 }
 

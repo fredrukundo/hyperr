@@ -18,7 +18,7 @@ const registerSchema = z.object({
     .min(1, "Username is required")
     .min(3, "Username must be at least 3 characters")
     .regex(
-      /^[a-z][a-z.]*[a-z]$|^[a-z]{3,}$/,
+      /^[a-z]+(\.[a-z]+)*$/,
       "Username must be lowercase, can contain dots (not at start/end or consecutive)"
     )
     .refine((val) => !val.includes(".."), "Username cannot have consecutive dots"),
@@ -39,10 +39,16 @@ const registerSchema = z.object({
   password: z
     .string()
     .min(1, "Password is required")
-    .min(6, "Password must be at least 6 characters"),
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[a-z]/, "Password must contain a lowercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
   repassword: z
     .string()
-    .min(1, "Please confirm your password"),
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[a-z]/, "Password must contain a lowercase letter")
+    .regex(/[0-9]/, "Password must contain a number"),
 }).refine((data) => data.password === data.repassword, {
   message: "Passwords do not match",
   path: ["repassword"],
